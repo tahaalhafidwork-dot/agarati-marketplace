@@ -1,0 +1,12 @@
+// Sprint 0 placeholder only.
+// Do not connect a database, run migrations, or generate a client.
+// Locked later: Prisma + PostgreSQL (see docs/DECISIONS.md).
+//
+// generator client {
+//   provider = "prisma-client-js"
+// }
+//
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+// }
