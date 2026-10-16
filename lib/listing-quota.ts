@@ -1,4 +1,5 @@
 import type { AccountType, AgencyUpgradeStatus } from "@prisma/client"
+import { PHASE_PRODUCTION_BUILD } from "next/constants"
 
 import { prisma } from "@/lib/db"
 
@@ -104,6 +105,8 @@ export async function expireOverdueListings(opts?: {
   ownerId?: string
   listingId?: string
 }): Promise<number> {
+  if (process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) return 0
+
   const scoped = Boolean(opts?.ownerId || opts?.listingId)
   if (!scoped) {
     const now = Date.now()
