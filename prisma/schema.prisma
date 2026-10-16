@@ -1,0 +1,409 @@
+// AGARATİ — Prisma + PostgreSQL (Supabase)
+// See docs/SUPABASE_SETUP.md for provisioning.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SEEKER
+  LISTER
+  ADMIN
+}
+
+enum DealType {
+  SALE
+  RENT
+  DAILY
+}
+
+enum PropertyCategory {
+  APARTMENT
+  HOUSE
+  VILLA
+  OFFICE
+  LAND
+  BUILDING
+  FARM
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  REJECTED
+  EXPIRED
+}
+
+enum ContactLeadStatus {
+  NEW
+  READ
+  ARCHIVED
+}
+
+enum ContactMethod {
+  WHATSAPP_PHONE
+  ALL
+  CHAT
+}
+
+enum PropertyRequestStatus {
+  PENDING
+  OPEN
+  FULFILLED
+  CLOSED
+  REJECTED
+}
+
+enum ReportKind {
+  MISLEADING_LISTING
+  FRAUD
+  ILLEGAL_CONTENT
+  IMPERSONATION
+  TECHNICAL
+  OTHER
+}
+
+enum ReportStatus {
+  NEW
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum AccountType {
+  INDIVIDUAL
+  AGENCY
+}
+
+enum AgencyUpgradeStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String   @id // matches Supabase auth.users.id (UUID)
+  email     String   @unique
+  name      String
+  phone     String?
+  whatsapp  String?
+  role      UserRole @default(LISTER)
+  avatarUrl             String?
+  notifyMessages        Boolean             @default(true)
+  notifyOther           Boolean             @default(true)
+  accountType           AccountType         @default(INDIVIDUAL)
+  agencyUpgradeStatus   AgencyUpgradeStatus @default(NONE)
+  agencyOfficeName      String?
+  agencyLogoUrl         String?
+  agencySocialUrl       String?
+  agencyRequestNote     String?             @db.Text
+  agencyRequestedAt     DateTime?
+  /// Public office location (required for agency signup / upgrade)
+  agencyCitySlug         String?
+  agencyDistrictSlug     String?
+  agencyNeighborhoodSlug String?
+  agencyAddressLine      String?
+  agencyBio              String?             @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings                 Listing[]
+  favorites                Favorite[]
+  savedSearches            SavedSearch[]
+  contactLeads             ContactLead[] @relation("LeadRecipient")
+  sentMessages             Message[]     @relation("SentMessages")
+  receivedMessages         Message[]     @relation("ReceivedMessages")
+  propertyRequests         PropertyRequest[]
+  propertyRequestMessages  PropertyRequestMessage[] @relation("PropertyRequestMessages")
+  reports                  Report[]
+  agencyProjects           AgencyProject[]
+  createdProjects          Project[]     @relation("ProjectCreator")
+  projectPhotos            ProjectPhoto[]
+}
+
+model Listing {
+  id          String           @id @default(cuid())
+  title       String
+  description String           @db.Text
+  category    PropertyCategory
+  deal        DealType
+  status      ListingStatus    @default(DRAFT)
+
+  /// Price in IQD (integer fils-free whole dinars)
+  priceIqd    Int
+  rooms       String?
+  areaM2      Int?
+  floor       String?
+  heating     String?
+  furnished   String?
+  meta        String?
+
+  citySlug         String
+  districtSlug     String
+  neighborhoodSlug String
+  complexSlug      String?
+  /// Name typed when proposing a new complex (admin may rename before approve)
+  proposedComplexName String?
+  /// Street / mahalla — shown on public listing detail
+  streetPrivate    String?
+  contactMethod  ContactMethod? @default(CHAT)
+  listingNumber  String?        @unique
+  /// Approximate public map coordinates (never exact street GPS)
+  mapLat         Float?
+  mapLng         Float?
+  /// Advertiser-selected amenities / nearby services (Arabic labels)
+  services       String[] @default([])
+  /// Public detail page views (owner analytics)
+  viewCount      Int @default(0)
+
+  moderationNote    String?
+  publishedAt       DateTime?
+  /// Public visibility window end (typically publishedAt + 90 days)
+  expiresAt         DateTime?
+  /// Owner hid from public browse without freeing quota
+  visibilityPaused  Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  images       ListingImage[]
+  favorites    Favorite[]
+  contactLeads ContactLead[]
+  messages     Message[]
+
+  @@index([status, createdAt])
+  @@index([citySlug, districtSlug])
+  @@index([category, deal, status])
+  @@index([ownerId])
+}
+
+model ListingImage {
+  id          String @id @default(cuid())
+  listingId   String
+  storagePath String
+  sortOrder   Int    @default(0)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+}
+
+/// Saved browse/search list (filters URL) — distinct from single-listing Favorite.
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  /// Full path e.g. /properties?type=apartment&deal=rent
+  href      String
+  /// Normalized query string for uniqueness (without leading ?)
+  queryKey  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, queryKey])
+  @@index([userId, createdAt])
+}
+
+model ContactLead {
+  id        String            @id @default(cuid())
+  listingId String
+  /// Owner of the listing (denormalized for inbox queries)
+  ownerId   String
+  fromName  String
+  fromPhone String
+  message   String            @db.Text
+  status    ContactLeadStatus @default(NEW)
+  createdAt DateTime          @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  owner   User    @relation("LeadRecipient", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, status, createdAt])
+  @@index([listingId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  listingId String
+  fromId    String
+  toId      String
+  content   String   @db.Text
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  from    User    @relation("SentMessages", fields: [fromId], references: [id], onDelete: Cascade)
+  to      User    @relation("ReceivedMessages", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([fromId, createdAt])
+  @@index([toId, createdAt])
+}
+
+/// Seeker «wanted» request — public board for matching listers.
+model PropertyRequest {
+  id          String                @id @default(cuid())
+  userId      String
+  title       String
+  description String                @db.Text
+  category    PropertyCategory?
+  deal        DealType?
+  citySlug    String?
+  districtSlug String?
+  neighborhoodSlug String?
+  rooms       String?
+  minBudgetIqd Int?
+  maxBudgetIqd Int?
+  minAreaM2   Int?
+  maxAreaM2   Int?
+  status      PropertyRequestStatus @default(PENDING)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  user     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages PropertyRequestMessage[]
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([citySlug, category, deal, status])
+}
+
+model PropertyRequestMessage {
+  id        String    @id @default(cuid())
+  requestId String
+  fromId    String
+  /// Counterpart (request owner or the interested party)
+  toId      String
+  content   String    @db.Text
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  request PropertyRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  from    User            @relation("PropertyRequestMessages", fields: [fromId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@index([fromId, createdAt])
+  @@index([toId, createdAt])
+}
+
+model Report {
+  id              String       @id @default(cuid())
+  referenceCode   String       @unique
+  kind            ReportKind
+  status          ReportStatus @default(NEW)
+  description     String       @db.Text
+  listingRef      String?
+  contactEmail    String?
+  contactPhone    String?
+  reporterUserId  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  reporter User? @relation(fields: [reporterUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([kind, createdAt])
+}
+
+/// Marketing / development project (e.g. residential complex) agencies can claim.
+enum ProjectStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+/// Public `/projects` lists RESIDENTIAL + MIXED_USE only; COMMERCIAL = malls etc.
+enum ProjectKind {
+  RESIDENTIAL
+  MIXED_USE
+  COMMERCIAL
+}
+
+model Project {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  name             String
+  status           ProjectStatus @default(PENDING)
+  projectKind      ProjectKind   @default(RESIDENTIAL)
+  /// Cover image (Supabase or curated URL)
+  imageUrl         String?
+  /// Additional development photos (1-3). Curated or Supabase URLs.
+  imageUrls        String[]      @default([])
+  /// Short public blurb about the development
+  summary          String?       @db.Text
+  websiteUrl       String?
+  citySlug         String?
+  districtSlug     String?
+  neighborhoodSlug String?
+  createdById      String?
+  reviewedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  createdBy User?           @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  agencies  AgencyProject[]
+  photos    ProjectPhoto[]
+
+  @@index([name])
+  @@index([status, createdAt])
+  @@index([citySlug])
+  @@index([projectKind, status])
+}
+
+/// Community / contributor photo for a project gallery (admin-moderated).
+model ProjectPhoto {
+  id             String        @id @default(cuid())
+  projectId      String
+  storagePath    String
+  status         ProjectStatus @default(PENDING)
+  contributorId  String?
+  /// Snapshot of display name at contribution time
+  contributorName String
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contributor User?   @relation(fields: [contributorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+/// Agency authorized to market a project (sales desk).
+model AgencyProject {
+  userId    String
+  projectId String
+  createdAt DateTime @default(now())
+  /// Reserved: official sales center after admin verification (not self-serve yet).
+  isOfficialSalesDesk Boolean @default(false)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, projectId])
+  @@index([projectId])
+}
