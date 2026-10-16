@@ -4,6 +4,26 @@
  */
 import { parseListingQuery } from "@/lib/listing-query"
 import {
+  activeFilterChips,
+  buildPropertiesHref,
+  parseListingQuery as parseQuery,
+  queryListings,
+} from "@/lib/listing-query"
+import {
+  buildListingWhere,
+  countFromIndex,
+  countPublicListings,
+  fetchPublicListings,
+  getPublicListingCountIndex,
+} from "@/lib/listing-service"
+import {
+  draftFromQuery,
+  draftToQueryPatch,
+  emptyFilterDraft,
+} from "@/components/search/listings-filter-fields"
+import { dealOptionsForCategory } from "@/lib/deals"
+import { prisma } from "@/lib/db"
+import {
   guestActions,
   publicNav,
   dashboardNav,
@@ -173,6 +193,210 @@ export function assertNavLocks(): string[] {
   return errors
 }
 
-export function runAllCharacterization(): string[] {
-  return [...assertBrowseParseCases(), ...assertNavLocks()]
+export function assertListingFilterContracts(): string[] {
+  const errors: string[] = []
+  const baseParams = {
+    type: "apartment",
+    deal: "sale",
+    city: "erbil",
+    district: "erbil-center",
+    neighborhood: "ankawa",
+    minPrice: "185000000",
+    maxPrice: "185000000",
+    minArea: "135",
+    maxArea: "135",
+    rooms: "٣+١",
+    q: "عنكاوا",
+  }
+  const match = queryListings(parseQuery(baseParams))
+  if (!match.some((listing) => listing.slug === "erbil-apartment-ankawa")) {
+    errors.push("all selected filters should retain the matching Erbil apartment")
+  }
+
+  const where = buildListingWhere(parseQuery(baseParams))
+  const whereFilters = where as unknown as {
+    category: string
+    deal: string
+    citySlug: string
+    districtSlug: string
+    neighborhoodSlug: string
+    priceIqd: { gte: number; lte: number }
+    areaM2: { gte: number; lte: number }
+    rooms: { in: string[] }
+    title: { contains: string }
+  }
+  if (
+    whereFilters.category !== "APARTMENT" ||
+    whereFilters.deal !== "SALE" ||
+    whereFilters.citySlug !== "erbil" ||
+    whereFilters.districtSlug !== "erbil-center" ||
+    whereFilters.neighborhoodSlug !== "ankawa" ||
+    whereFilters.priceIqd.gte !== 185000000 ||
+    whereFilters.priceIqd.lte !== 185000000 ||
+    whereFilters.areaM2.gte !== 135 ||
+    whereFilters.areaM2.lte !== 135 ||
+    whereFilters.rooms.in[0] !== "٣+١" ||
+    whereFilters.title.contains !== "عنكاوا"
+  ) {
+    errors.push("database where clause should include every selected filter")
+  }
+
+  const mismatches: Array<[string, Record<string, string>]> = [
+    ["category", { type: "land" }],
+    ["deal", { type: "apartment", deal: "rent" }],
+    ["city", { type: "apartment", city: "baghdad" }],
+    ["district", { type: "apartment", city: "erbil", district: "karkh" }],
+    [
+      "neighborhood",
+      { type: "apartment", city: "erbil", district: "erbil-center", neighborhood: "mansour" },
+    ],
+    ["minimum price", { type: "apartment", minPrice: "185000001" }],
+    ["maximum price", { type: "apartment", maxPrice: "184999999" }],
+    ["minimum area", { type: "apartment", minArea: "136" }],
+    ["maximum area", { type: "apartment", maxArea: "134" }],
+    ["rooms", { type: "apartment", rooms: "٤+١" }],
+    ["text search", { type: "apartment", q: "عنوان غير موجود" }],
+  ]
+  for (const [name, params] of mismatches) {
+    const results = queryListings(parseQuery(params))
+    if (results.some((listing) => listing.slug === "erbil-apartment-ankawa")) {
+      errors.push(`${name} filter should exclude the Erbil apartment`)
+    }
+  }
+
+  const roundTripHref = buildPropertiesHref({
+    ...parseQuery(baseParams),
+    sort: "price-asc",
+    view: "map",
+  })
+  const roundTripParams = Object.fromEntries(
+    new URL(roundTripHref, "https://agarati.test").searchParams.entries()
+  )
+  const roundTrip = parseQuery(roundTripParams)
+  if (
+    roundTrip.category !== "apartment" ||
+    roundTrip.deal !== "sale" ||
+    roundTrip.city !== "erbil" ||
+    roundTrip.district !== "erbil-center" ||
+    roundTrip.neighborhood !== "ankawa" ||
+    roundTrip.minPrice !== 185000000 ||
+    roundTrip.maxArea !== 135 ||
+    roundTrip.rooms?.[0] !== "٣+١" ||
+    roundTrip.q !== "عنكاوا" ||
+    roundTrip.sort !== "price-asc"
+  ) {
+    errors.push("building and parsing a filter URL should preserve its query state")
+  }
+
+  const searchedParams = Object.fromEntries(
+    new URL(
+      buildPropertiesHref({ ...parseQuery(baseParams), q: "عنكاوا" }),
+      "https://agarati.test"
+    ).searchParams.entries()
+  )
+  const searched = parseQuery(searchedParams)
+  if (
+    searched.category !== "apartment" ||
+    searched.deal !== "sale" ||
+    searched.city !== "erbil" ||
+    searched.minPrice !== 185000000 ||
+    searched.rooms?.[0] !== "٣+١" ||
+    searched.q !== "عنكاوا"
+  ) {
+    errors.push("submitting search should preserve existing property filters")
+  }
+
+  const priceChip = activeFilterChips(parseQuery(baseParams)).find(
+    (chip) => chip.key === "price"
+  )
+  const clearedPrice = priceChip
+    ? parseQuery(
+        Object.fromEntries(
+          new URL(priceChip.clearHref, "https://agarati.test").searchParams.entries()
+        )
+      )
+    : undefined
+  if (
+    !clearedPrice ||
+    clearedPrice.minPrice !== undefined ||
+    clearedPrice.maxPrice !== undefined ||
+    clearedPrice.category !== "apartment" ||
+    clearedPrice.q !== "عنكاوا"
+  ) {
+    errors.push("clearing the price chip should remove only price bounds")
+  }
+
+  const landDraft = draftFromQuery({
+    category: "land",
+    deal: "daily",
+    rooms: ["٣+١"],
+  })
+  if (landDraft.deal || landDraft.rooms.length > 0) {
+    errors.push("land filters should omit unsupported daily deal and rooms")
+  }
+  if (dealOptionsForCategory("land").some((option) => option.value === "daily")) {
+    errors.push("land deal options should not include daily rent")
+  }
+  if (!dealOptionsForCategory("apartment").some((option) => option.value === "daily")) {
+    errors.push("apartment deal options should include daily rent")
+  }
+
+  const arabicBounds = draftToQueryPatch({
+    ...emptyFilterDraft(),
+    minPrice: "١٨٥٠٠٠٠٠٠",
+    maxArea: "١٣٥",
+  })
+  if (arabicBounds.minPrice !== 185000000 || arabicBounds.maxArea !== 135) {
+    errors.push("Arabic-Indic price and area inputs should become numeric filters")
+  }
+
+  return errors
+}
+
+export async function assertDatabaseReadFailuresDoNotShowSamples(): Promise<string[]> {
+  const errors: string[] = []
+  const keys = ["DATABASE_URL", "DATABASE_LIVE", "VERCEL", "NEXT_PHASE"] as const
+  const previous = new Map(keys.map((key) => [key, process.env[key]]))
+
+  try {
+    process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test"
+    process.env.DATABASE_LIVE = "1"
+    process.env.VERCEL = "1"
+    process.env.NEXT_PHASE = "phase-production-build"
+
+    const query = parseQuery({ type: "apartment" })
+    const listings = await fetchPublicListings(query)
+    if (listings.length > 0) {
+      errors.push("database read failures must not be replaced with sample listings")
+    }
+    const count = await countPublicListings(query)
+    if (count !== 0) errors.push("database count failures must not use sample counts")
+    const index = await getPublicListingCountIndex()
+    if (
+      index.all !== 0 ||
+      countFromIndex(index, { category: "apartment" }) !== 0
+    ) {
+      errors.push("category counts should be zero when database reads fail")
+    }
+  } catch (error) {
+    errors.push(`database read failure contract threw: ${String(error)}`)
+  } finally {
+    for (const key of keys) {
+      const value = previous.get(key)
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+    await prisma.$disconnect()
+  }
+
+  return errors
+}
+
+export async function runAllCharacterization(): Promise<string[]> {
+  return [
+    ...assertBrowseParseCases(),
+    ...assertNavLocks(),
+    ...assertListingFilterContracts(),
+    ...(await assertDatabaseReadFailuresDoNotShowSamples()),
+  ]
 }

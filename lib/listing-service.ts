@@ -97,9 +97,8 @@ async function liveMarketplaceHasListings(): Promise<boolean> {
  */
 export async function countPublicListings(query: ListingQuery): Promise<number> {
   const sampleCount = sampleCardsForQuery(query).length
-  if (!isDatabaseConfigured() || !(await isDatabaseReachable())) {
-    return sampleCount
-  }
+  if (!isDatabaseConfigured()) return sampleCount
+  if (!(await isDatabaseReachable())) return 0
   try {
     await expireOverdueListings()
     const dbCount = await prisma.listing.count({
@@ -109,8 +108,19 @@ export async function countPublicListings(query: ListingQuery): Promise<number> 
     if (await liveMarketplaceHasListings()) return 0
     return sampleCount
   } catch {
-    return sampleCount
+    return 0
   }
+}
+
+function emptyListingCountIndex(): Record<string, number> {
+  const index: Record<string, number> = { all: 0 }
+  for (const category of Object.keys(categoryToPrisma) as PropertyCategory[]) {
+    index[category] = 0
+    for (const deal of Object.keys(dealToPrisma) as DealType[]) {
+      index[`${category}:${deal}`] = 0
+    }
+  }
+  return index
 }
 
 /**
@@ -135,9 +145,8 @@ export const getPublicListingCountIndex = cache(async (): Promise<
     }
   }
 
-  if (!isDatabaseConfigured() || !(await isDatabaseReachable())) {
-    return sampleIndex
-  }
+  if (!isDatabaseConfigured()) return sampleIndex
+  if (!(await isDatabaseReachable())) return emptyListingCountIndex()
 
   try {
     await expireOverdueListings()
@@ -149,13 +158,7 @@ export const getPublicListingCountIndex = cache(async (): Promise<
 
     if (groups.length === 0) return sampleIndex
 
-    const index: Record<string, number> = { all: 0 }
-    for (const category of categories) {
-      index[category] = 0
-      for (const deal of deals) {
-        index[`${category}:${deal}`] = 0
-      }
-    }
+    const index = emptyListingCountIndex()
 
     for (const row of groups) {
       const category = prismaToCategory[row.category]
@@ -177,7 +180,7 @@ export const getPublicListingCountIndex = cache(async (): Promise<
 
     return index.all > 0 ? index : sampleIndex
   } catch {
-    return sampleIndex
+    return emptyListingCountIndex()
   }
 })
 
@@ -192,7 +195,7 @@ export function countFromIndex(
   return index.all ?? 0
 }
 
-function buildListingWhere(query: ListingQuery): Prisma.ListingWhereInput {
+export function buildListingWhere(query: ListingQuery): Prisma.ListingWhereInput {
   const where: Prisma.ListingWhereInput = {
     ...publicListingVisibilityWhere(),
   }
@@ -266,9 +269,8 @@ export async function fetchPublicListings(
 ): Promise<PublicListingCard[]> {
   const limit = opts?.take ?? PAGE_SIZE
 
-  if (!isDatabaseConfigured() || !(await isDatabaseReachable())) {
-    return sampleCardsForQuery(query).slice(0, limit)
-  }
+  if (!isDatabaseConfigured()) return sampleCardsForQuery(query).slice(0, limit)
+  if (!(await isDatabaseReachable())) return []
 
   try {
     await expireOverdueListings()
@@ -313,7 +315,7 @@ export async function fetchPublicListings(
     if (await liveMarketplaceHasListings()) return []
     return sampleFallback([], query, limit)
   } catch {
-    return sampleFallback([], query, limit)
+    return []
   }
 }
 

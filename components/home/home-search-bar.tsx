@@ -5,24 +5,25 @@ import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
+import { buildPropertiesHref, type ListingQuery } from "@/lib/listing-query"
 import { cn } from "@/lib/utils"
 
 /** Classifieds search — digits → listing #, alphanumeric (7L94I) → listing #, words → title. */
 export function HomeSearchBar({
   className,
   initialQuery = "",
+  baseQuery,
 }: {
   className?: string
   initialQuery?: string
+  baseQuery?: Partial<ListingQuery> & { view?: "list" | "map" }
 }) {
   const router = useRouter()
   const [query, setQuery] = useState(initialQuery)
 
   const go = (raw: string) => {
     const trimmed = raw.trim()
-    router.push(
-      trimmed ? `/properties?q=${encodeURIComponent(trimmed)}` : "/properties"
-    )
+    router.push(buildPropertiesHref({ ...baseQuery, q: trimmed || undefined }))
   }
 
   const handleSubmit = (e: FormEvent) => {

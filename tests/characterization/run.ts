@@ -1,9 +1,13 @@
 import { runAllCharacterization } from "./contracts"
 
-const errors = runAllCharacterization()
-if (errors.length) {
-  console.error("Characterization FAILED:")
-  for (const e of errors) console.error(" -", e)
-  process.exit(1)
+async function main() {
+  const errors = await runAllCharacterization()
+  if (errors.length) {
+    console.error("Characterization FAILED:")
+    for (const e of errors) console.error(" -", e)
+    process.exit(1)
+  }
+  console.log("Characterization OK (", 0, "failures)")
 }
-console.log("Characterization OK (", 0, "failures)")
+
+void main()

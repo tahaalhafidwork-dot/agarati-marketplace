@@ -90,6 +90,7 @@ export function ListingsFilterRail({
           <ListingsFilterFields
             value={draft}
             onChange={setDraft}
+            category={query.category}
             catalogProjects={catalogProjects}
           />
         </CardContent>

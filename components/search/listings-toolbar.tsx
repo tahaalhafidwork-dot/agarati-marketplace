@@ -282,6 +282,7 @@ function FilterSheet({
           <ListingsFilterFields
             value={draft}
             onChange={setDraft}
+            category={query.category}
             catalogProjects={catalogProjects}
           />
         </div>

@@ -8,8 +8,13 @@ import {
 } from "@/components/search/location-filter-fields"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { filterRoomOptions } from "@/lib/listing-query"
-import { dealLabels, type DealType } from "@/lib/sample-listings"
+import {
+  CATEGORY_FIELD_FLAGS,
+  dealOptionsForCategory,
+  isDealAllowedForCategory,
+} from "@/lib/listing-form-config"
+import { filterRoomOptions, parseIQD } from "@/lib/listing-query"
+import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
 
 /** MVP deals only — short-stay rental is deferred. */
@@ -29,6 +34,7 @@ type Props = {
   value: ListingsFilterDraft
   onChange: (next: ListingsFilterDraft) => void
   className?: string
+  category?: PropertyCategory
   catalogProjects?: Array<{
     slug: string
     name: string
@@ -57,10 +63,12 @@ export function ListingsFilterFields({
   value,
   onChange,
   className,
+  category,
   catalogProjects,
 }: Props) {
   const patch = (partial: Partial<ListingsFilterDraft>) =>
     onChange({ ...value, ...partial })
+  const categoryDealOptions = dealOptionsForCategory(category ?? "")
 
   const toggleRoom = (room: string) => {
     const rooms = value.rooms.includes(room)
@@ -77,7 +85,7 @@ export function ListingsFilterFields({
           role="group"
           aria-label="نوع الصفقة"
         >
-          {filterDealOptions.map((key) => {
+          {categoryDealOptions.map(({ value: key, label }) => {
             const selected = value.deal === key
             return (
               <button
@@ -91,7 +99,7 @@ export function ListingsFilterFields({
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                {dealLabels[key]}
+                {label}
               </button>
             )
           })}
@@ -106,29 +114,31 @@ export function ListingsFilterFields({
         />
       </FilterSection>
 
-      <FilterSection title="عدد الغرف">
-        <div className="flex flex-wrap gap-1.5">
-          {filterRoomOptions.map((room) => {
-            const selected = value.rooms.includes(room)
-            return (
-              <button
-                key={room}
-                type="button"
-                onClick={() => toggleRoom(room)}
-                aria-pressed={selected}
-                className={cn(
-                  "min-w-14 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
-                  selected
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground hover:border-primary/35"
-                )}
-              >
-                {room}
-              </button>
-            )
-          })}
-        </div>
-      </FilterSection>
+      {(!category || CATEGORY_FIELD_FLAGS[category].rooms) && (
+        <FilterSection title="عدد الغرف">
+          <div className="flex flex-wrap gap-1.5">
+            {filterRoomOptions.map((room) => {
+              const selected = value.rooms.includes(room)
+              return (
+                <button
+                  key={room}
+                  type="button"
+                  onClick={() => toggleRoom(room)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "min-w-14 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-foreground hover:border-primary/35"
+                  )}
+                >
+                  {room}
+                </button>
+              )
+            })}
+          </div>
+        </FilterSection>
+      )}
 
       <FilterSection title="السعر (د.ع)">
         <div className="grid grid-cols-2 gap-2">
@@ -231,6 +241,7 @@ export function ListingsFilterFields({
 }
 
 export function draftFromQuery(query: {
+  category?: PropertyCategory
   deal?: DealType
   city?: string
   district?: string
@@ -243,14 +254,22 @@ export function draftFromQuery(query: {
   maxArea?: number
 }): ListingsFilterDraft {
   return {
-    deal: query.deal,
+    deal:
+      query.deal &&
+      query.category &&
+      !isDealAllowedForCategory(query.category, query.deal)
+        ? undefined
+        : query.deal,
     location: {
       city: query.city,
       district: query.district,
       neighborhood: query.neighborhood,
       complex: query.complex,
     },
-    rooms: query.rooms ?? [],
+    rooms:
+      query.category && !CATEGORY_FIELD_FLAGS[query.category].rooms
+        ? []
+        : query.rooms ?? [],
     minPrice: query.minPrice?.toString() ?? "",
     maxPrice: query.maxPrice?.toString() ?? "",
     minArea: query.minArea?.toString() ?? "",
@@ -271,6 +290,11 @@ export function emptyFilterDraft(): ListingsFilterDraft {
 }
 
 export function draftToQueryPatch(draft: ListingsFilterDraft) {
+  const parseBound = (value: string) => {
+    const parsed = parseIQD(value)
+    return parsed || undefined
+  }
+
   return {
     deal: draft.deal,
     city: draft.location.city,
@@ -278,9 +302,9 @@ export function draftToQueryPatch(draft: ListingsFilterDraft) {
     neighborhood: draft.location.neighborhood,
     complex: draft.location.complex,
     rooms: draft.rooms.length ? draft.rooms : undefined,
-    minPrice: draft.minPrice ? Number(draft.minPrice) || undefined : undefined,
-    maxPrice: draft.maxPrice ? Number(draft.maxPrice) || undefined : undefined,
-    minArea: draft.minArea ? Number(draft.minArea) || undefined : undefined,
-    maxArea: draft.maxArea ? Number(draft.maxArea) || undefined : undefined,
+    minPrice: parseBound(draft.minPrice),
+    maxPrice: parseBound(draft.maxPrice),
+    minArea: parseBound(draft.minArea),
+    maxArea: parseBound(draft.maxArea),
   }
 }

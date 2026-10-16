@@ -57,7 +57,11 @@ export function PropertiesBrowseView({ model }: { model: BrowsePageModel }) {
       />
 
       <div className="border-b border-border bg-card px-3 py-2.5 md:px-4">
-        <HomeSearchBar initialQuery={query.q ?? ""} />
+        <HomeSearchBar
+          key={query.q ?? ""}
+          initialQuery={query.q ?? ""}
+          baseQuery={{ ...query, view: mapView ? "map" : "list" }}
+        />
       </div>
 
       <div className="hidden border-b border-border bg-card px-4 py-3 md:flex md:items-center md:justify-between md:gap-3">
