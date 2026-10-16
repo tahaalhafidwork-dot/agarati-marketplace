@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -38,34 +38,57 @@ export default function PropertyDetailScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { signedIn, ready } = useAuth()
-  const [item, setItem] = useState<MobileListingCard | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<{
+    id: string
+    item: MobileListingCard | null
+    error: string | null
+  } | null>(null)
+  const requestId = useRef(0)
+  const matchesId = result?.id === id
+  const item = matchesId ? result.item : null
+  const error = matchesId ? result.error : null
+  const loading = !ready || !matchesId
   const [imageIndex, setImageIndex] = useState(0)
   const [favorited, setFavorited] = useState(false)
   const [favBusy, setFavBusy] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
+  const fetchProperty = useCallback(async () => {
+    if (!id) return { item: null, error: null }
     try {
       const data = await propertyAccess.getById(id)
-      setItem(data)
-      setFavorited(Boolean(data.favorited))
-      setImageIndex(0)
+      return { item: data, error: null }
     } catch (e) {
-      setItem(null)
-      setError(e instanceof Error ? e.message : "تعذّر تحميل الإعلان")
-    } finally {
-      setLoading(false)
+      return {
+        item: null,
+        error: e instanceof Error ? e.message : "تعذّر تحميل الإعلان",
+      }
     }
   }, [id])
 
+  const requestProperty = useCallback(() => {
+    const request = ++requestId.current
+    void fetchProperty().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ id, ...next })
+      if (next.item) {
+        setFavorited(Boolean(next.item.favorited))
+        setImageIndex(0)
+      }
+    })
+  }, [fetchProperty, id])
+
   useEffect(() => {
-    if (!ready) return
-    void load()
-  }, [ready, load])
+    if (!ready || !id) return
+    requestProperty()
+    return () => {
+      requestId.current += 1
+    }
+  }, [id, ready, requestProperty])
+
+  const retry = () => {
+    setResult(null)
+    requestProperty()
+  }
 
   const onToggleFavorite = async () => {
     if (!item) return
@@ -119,7 +142,7 @@ export default function PropertyDetailScreen() {
   if (error) {
     return (
       <View style={styles.flex}>
-        <ErrorState message={error} onRetry={() => void load()} />
+        <ErrorState message={error} onRetry={retry} />
       </View>
     )
   }
@@ -209,6 +232,7 @@ export default function PropertyDetailScreen() {
               <Image
                 key={`${uri}-${i}`}
                 source={{ uri }}
+                alt={`${item.title}، صورة ${i + 1}`}
                 style={{ width, height: width * 0.75 }}
                 resizeMode="cover"
               />

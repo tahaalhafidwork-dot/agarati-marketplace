@@ -113,7 +113,7 @@ export async function updatePasswordAction(
   formData: FormData
 ): Promise<SettingsActionState> {
   try {
-    const user = await requireDbUser()
+    await requireDbUser()
     const password = String(formData.get("password") ?? "")
     const confirm = String(formData.get("confirmPassword") ?? "")
 

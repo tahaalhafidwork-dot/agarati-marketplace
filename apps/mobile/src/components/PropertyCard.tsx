@@ -19,6 +19,7 @@ export function PropertyCard({ item }: { item: MobileListingCard }) {
         {item.image ? (
           <Image
             source={{ uri: item.image }}
+            alt={item.title}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />

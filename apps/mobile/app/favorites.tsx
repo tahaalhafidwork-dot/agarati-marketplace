@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   FlatList,
   Pressable,
@@ -24,40 +24,68 @@ import { colors, radii, spacing } from "../src/theme/tokens"
 /** Favorites — mirrors web dashboard/favorites listing list (signed-in). */
 export default function FavoritesScreen() {
   const router = useRouter()
-  const { ready, signedIn } = useAuth()
-  const [items, setItems] = useState<MobileListingCard[]>([])
-  const [loading, setLoading] = useState(true)
+  const { ready, signedIn, session } = useAuth()
+  const userId = session?.user.id ?? ""
+  const [result, setResult] = useState<{
+    userId: string
+    items: MobileListingCard[]
+    error: string | null
+  } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const requestId = useRef(0)
+  const matchesUser = result?.userId === userId
+  const items = matchesUser ? result.items : []
+  const error = matchesUser ? result.error : null
+  const loading = ready && signedIn && !matchesUser
 
-  const load = useCallback(
-    async (isRefresh = false) => {
-      if (!signedIn) {
-        setItems([])
-        setLoading(false)
-        return
-      }
-      if (isRefresh) setRefreshing(true)
-      else setLoading(true)
-      setError(null)
+  const fetchFavorites = useCallback(
+    async (): Promise<{ items: MobileListingCard[]; error: string | null }> => {
       try {
         const res = await favoritesAccess.list()
-        setItems(res.items)
+        return { items: res.items, error: null }
       } catch (e) {
-        setItems([])
-        setError(e instanceof Error ? e.message : "تعذّر تحميل المفضلة")
-      } finally {
-        setLoading(false)
-        setRefreshing(false)
+        return {
+          items: [],
+          error: e instanceof Error ? e.message : "تعذّر تحميل المفضلة",
+        }
       }
     },
-    [signedIn]
+    []
   )
 
   useEffect(() => {
-    if (!ready) return
-    void load()
-  }, [ready, load])
+    if (!ready || !signedIn) return
+    const request = ++requestId.current
+    void fetchFavorites().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ userId, ...next })
+      setRefreshing(false)
+    })
+    return () => {
+      if (requestId.current === request) requestId.current += 1
+    }
+  }, [fetchFavorites, ready, signedIn, userId])
+
+  const refresh = () => {
+    if (!signedIn) return
+    const request = ++requestId.current
+    setRefreshing(true)
+    void fetchFavorites().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ userId, ...next })
+      setRefreshing(false)
+    })
+  }
+
+  const retry = () => {
+    setResult(null)
+    const request = ++requestId.current
+    void fetchFavorites().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ userId, ...next })
+      setRefreshing(false)
+    })
+  }
 
   if (!ready) {
     return (
@@ -92,7 +120,7 @@ export default function FavoritesScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
-        <ErrorState message={error} onRetry={() => void load()} />
+        <ErrorState message={error} onRetry={retry} />
       </SafeAreaView>
     )
   }
@@ -116,7 +144,7 @@ export default function FavoritesScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void load(true)}
+            onRefresh={refresh}
             tintColor={colors.primary}
           />
         }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   FlatList,
   Pressable,
@@ -25,7 +25,7 @@ import type {
   MobilePropertyCategory,
 } from "../../src/lib/types"
 import { font } from "../../src/theme/fonts"
-import { colors, spacing, type } from "../../src/theme/tokens"
+import { colors, spacing } from "../../src/theme/tokens"
 
 function asString(v: string | string[] | undefined): string | undefined {
   if (Array.isArray(v)) return v[0]
@@ -44,10 +44,18 @@ export default function BrowseScreen() {
   const type = asString(params.type) as MobilePropertyCategory | undefined
   const deal = asString(params.deal) as MobileDealType | undefined
 
-  const [items, setItems] = useState<MobileListingCard[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryKey = JSON.stringify([q, type, deal])
+  const [result, setResult] = useState<{
+    key: string
+    items: MobileListingCard[]
+    error: string | null
+  } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const requestId = useRef(0)
+  const matchesQuery = result?.key === queryKey
+  const items = matchesQuery ? result.items : []
+  const error = matchesQuery ? result.error : null
+  const loading = !matchesQuery
 
   const title = type
     ? (categoryMenuLabels[type] ?? "العقارات")
@@ -57,11 +65,8 @@ export default function BrowseScreen() {
         ? `نتائج: ${q}`
         : "كل الإعلانات"
 
-  const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true)
-      else setLoading(true)
-      setError(null)
+  const fetchListings = useCallback(
+    async (): Promise<{ items: MobileListingCard[]; error: string | null }> => {
       try {
         const res = await listingsAccess.list({
           q: q || undefined,
@@ -71,21 +76,48 @@ export default function BrowseScreen() {
           page: 1,
           pageSize: 24,
         })
-        setItems(res.items)
+        return { items: res.items, error: null }
       } catch (e) {
-        setItems([])
-        setError(e instanceof Error ? e.message : "تعذّر تحميل النتائج")
-      } finally {
-        setLoading(false)
-        setRefreshing(false)
+        return {
+          items: [],
+          error: e instanceof Error ? e.message : "تعذّر تحميل النتائج",
+        }
       }
     },
     [q, type, deal]
   )
 
   useEffect(() => {
-    void load()
-  }, [load])
+    const request = ++requestId.current
+    void fetchListings().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ key: queryKey, ...next })
+      setRefreshing(false)
+    })
+    return () => {
+      if (requestId.current === request) requestId.current += 1
+    }
+  }, [fetchListings, queryKey])
+
+  const refresh = () => {
+    const request = ++requestId.current
+    setRefreshing(true)
+    void fetchListings().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ key: queryKey, ...next })
+      setRefreshing(false)
+    })
+  }
+
+  const retry = () => {
+    setResult(null)
+    const request = ++requestId.current
+    void fetchListings().then((next) => {
+      if (request !== requestId.current) return
+      setResult({ key: queryKey, ...next })
+      setRefreshing(false)
+    })
+  }
 
   const onSearch = (next: string) => {
     const qs = new URLSearchParams()
@@ -132,7 +164,7 @@ export default function BrowseScreen() {
       {loading ? (
         <LoadingState />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => void load()} />
+        <ErrorState message={error} onRetry={retry} />
       ) : (
         <FlatList
           data={items}
@@ -149,7 +181,7 @@ export default function BrowseScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => void load(true)}
+              onRefresh={refresh}
               tintColor={colors.primary}
             />
           }

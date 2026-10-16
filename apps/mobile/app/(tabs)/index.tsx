@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Pressable,
   RefreshControl,
@@ -29,35 +29,69 @@ import { colors, spacing, type } from "../../src/theme/tokens"
 /** Home — visual parity with web `app/(public)/page.tsx` mobile fold. */
 export default function HomeScreen() {
   const router = useRouter()
-  const [items, setItems] = useState<MobileListingCard[]>([])
-  const [categories, setCategories] = useState<CategoryRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [result, setResult] = useState<{
+    items: MobileListingCard[]
+    categories: CategoryRow[]
+    error: string | null
+  } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const requestId = useRef(0)
+  const items = result?.items ?? []
+  const categories = result?.categories ?? []
+  const error = result?.error ?? null
+  const loading = result === null
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true)
-    else setLoading(true)
-    setError(null)
+  const fetchHome = useCallback(async () => {
     try {
       const [feed, cats] = await Promise.all([
         homeAccess.featured(),
         homeAccess.categories(),
       ])
-      setItems(feed.items.slice(0, 6))
-      setCategories(cats)
+      return {
+        items: feed.items.slice(0, 6),
+        categories: cats,
+        error: null,
+      }
     } catch (e) {
-      setItems([])
-      setError(e instanceof Error ? e.message : "تعذّر تحميل الإعلانات")
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
+      return {
+        items: [],
+        categories: [],
+        error: e instanceof Error ? e.message : "تعذّر تحميل الإعلانات",
+      }
     }
   }, [])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    const request = ++requestId.current
+    void fetchHome().then((next) => {
+      if (request !== requestId.current) return
+      setResult(next)
+      setRefreshing(false)
+    })
+    return () => {
+      if (requestId.current === request) requestId.current += 1
+    }
+  }, [fetchHome])
+
+  const refresh = () => {
+    const request = ++requestId.current
+    setRefreshing(true)
+    void fetchHome().then((next) => {
+      if (request !== requestId.current) return
+      setResult(next)
+      setRefreshing(false)
+    })
+  }
+
+  const retry = () => {
+    setResult(null)
+    const request = ++requestId.current
+    void fetchHome().then((next) => {
+      if (request !== requestId.current) return
+      setResult(next)
+      setRefreshing(false)
+    })
+  }
 
   const onSearch = (q: string) => {
     if (!q) router.push("/browse" as Href)
@@ -72,7 +106,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void load(true)}
+            onRefresh={refresh}
             tintColor={colors.primary}
           />
         }
@@ -94,7 +128,7 @@ export default function HomeScreen() {
           {loading ? (
             <LoadingState />
           ) : error ? (
-            <ErrorState message={error} onRetry={() => void load()} />
+            <ErrorState message={error} onRetry={retry} />
           ) : items.length === 0 ? (
             <EmptyState message="لا إعلانات منشورة بعد." />
           ) : (

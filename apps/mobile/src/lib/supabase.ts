@@ -31,5 +31,8 @@ export function createMobileSupabase(): SupabaseClient | null {
 
 /** True when public env is present (client can be constructed). */
 export function isMobileSupabaseConfigured(): boolean {
-  return Boolean(createMobileSupabase())
+  return Boolean(
+    process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() &&
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim()
+  )
 }

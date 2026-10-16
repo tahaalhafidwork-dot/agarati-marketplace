@@ -4,13 +4,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
 import type { Session, User } from "@supabase/supabase-js"
 
+import { ErrorState } from "../components/StateViews"
 import { mobileRequest } from "../lib/api"
-import { createMobileSupabase } from "../lib/supabase"
+import {
+  createMobileSupabase,
+  isMobileSupabaseConfigured,
+} from "../lib/supabase"
 
 export type AuthProfile = {
   id: string
@@ -40,6 +45,7 @@ type AuthContextValue = {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 8_000
 
 async function syncProfile(
   token: string,
@@ -63,33 +69,77 @@ async function syncProfile(
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => !isMobileSupabaseConfigured())
   const [session, setSession] = useState<Session | null>(null)
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null)
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0)
+  const mounted = useRef(true)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   useEffect(() => {
     const client = createMobileSupabase()
-    if (!client) {
+    if (!client) return
+
+    let active = true
+    let bootstrapFinished = false
+    let authEventSeen = false
+
+    const timeout = setTimeout(() => {
+      failBootstrap("استغرقت استعادة جلسة الدخول وقتًا أطول من المتوقع.")
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS)
+
+    function finishBootstrap(next: Session | null) {
+      if (!active) return
+      bootstrapFinished = true
+      clearTimeout(timeout)
+      setSession(next)
+      setBootstrapError(null)
       setReady(true)
-      return
     }
 
-    let cancelled = false
-    void client.auth.getSession().then(({ data }) => {
-      if (!cancelled) {
-        setSession(data.session)
-        setReady(true)
-      }
-    })
+    function failBootstrap(message: string) {
+      if (!active || bootstrapFinished) return
+      bootstrapFinished = true
+      clearTimeout(timeout)
+      setBootstrapError(message)
+      setReady(true)
+    }
 
     const { data: sub } = client.auth.onAuthStateChange((_event, next) => {
-      setSession(next)
-      setReady(true)
+      authEventSeen = true
+      finishBootstrap(next)
     })
 
+    void client.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error) throw error
+        if (authEventSeen) return
+        finishBootstrap(data.session)
+      })
+      .catch(() => {
+        if (authEventSeen) return
+        failBootstrap("تعذّر قراءة جلسة الدخول المحفوظة.")
+      })
+
     return () => {
-      cancelled = true
+      active = false
+      clearTimeout(timeout)
       sub.subscription.unsubscribe()
     }
+  }, [bootstrapAttempt])
+
+  const retryBootstrap = useCallback(() => {
+    if (!mounted.current) return
+    setBootstrapError(null)
+    setReady(false)
+    setBootstrapAttempt((attempt) => attempt + 1)
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -147,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const client = createMobileSupabase()
     if (client) await client.auth.signOut()
-    setSession(null)
+    if (mounted.current) setSession(null)
   }, [])
 
   const ensureProfile = useCallback(
@@ -177,7 +227,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [ready, session, signIn, signUp, signOut, ensureProfile]
   )
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {bootstrapError ? (
+        <ErrorState message={bootstrapError} onRetry={retryBootstrap} />
+      ) : (
+        children
+      )}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthContextValue {

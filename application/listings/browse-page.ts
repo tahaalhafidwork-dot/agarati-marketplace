@@ -1,6 +1,6 @@
 import { listApprovedProjectsForComplexes } from "@/lib/complex-options"
 import { PAGE_SIZE } from "@/lib/constants"
-import { isDatabaseConfigured, isDatabaseReachable, prisma } from "@/lib/db"
+import { isDatabaseReachable, prisma } from "@/lib/db"
 import {
   parseListingQuery,
   sortLabel,

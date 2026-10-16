@@ -26,7 +26,6 @@ const core = await import(
 )
 
 const {
-  Config,
   ConsoleLog,
   TwaGenerator,
   TwaManifest,
