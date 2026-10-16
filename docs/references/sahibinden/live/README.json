@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-09-26",
+  "method": "Apify web-fetch (Unblocker) with Accept-Language: tr-TR",
+  "note": "Residential TR Playwright crawl often hit geo login wall; Unblocker HTML fetch returned real homepage + satilik-daire IA.",
+  "pages": {
+    "home": {
+      "title": "sahibinden.com - Türkiye'nin Online İlan ve Alışveriş Sitesi",
+      "htmlBytes": 103110,
+      "isLoginWall": false,
+      "signals": "home-signals.json"
+    },
+    "satilikDaire": {
+      "title": "Satılık Daire İlanları ve Satılık Ev Fiyatları - sahibinden.com",
+      "markdownBytes": 60752,
+      "isLoginWall": false,
+      "signals": "satilik-daire-signals.json"
+    }
+  }
+}
