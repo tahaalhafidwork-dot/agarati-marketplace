@@ -44,9 +44,11 @@ export type ListingWizardInitial = {
   deal: DealType
   title: string
   price: string
-  rooms: string
+  roomCount: string
   areaM2: string
-  floor: string
+  floorNumber: string
+  propertyFloors: string
+  buildingFloors: string
   heating: string
   furnished: string
   services: string[]
@@ -90,9 +92,17 @@ export function NewListingForm({
   const [deal, setDeal] = useState<DealType | "">(initialValues?.deal ?? "")
   const [title, setTitle] = useState(initialValues?.title ?? "")
   const [price, setPrice] = useState(initialValues?.price ?? "")
-  const [rooms, setRooms] = useState(initialValues?.rooms ?? "")
+  const [roomCount, setRoomCount] = useState(initialValues?.roomCount ?? "")
   const [areaM2, setAreaM2] = useState(initialValues?.areaM2 ?? "")
-  const [floor, setFloor] = useState(initialValues?.floor ?? "")
+  const [floorNumber, setFloorNumber] = useState(
+    initialValues?.floorNumber ?? ""
+  )
+  const [propertyFloors, setPropertyFloors] = useState(
+    initialValues?.propertyFloors ?? ""
+  )
+  const [buildingFloors, setBuildingFloors] = useState(
+    initialValues?.buildingFloors ?? ""
+  )
   const [heating, setHeating] = useState(initialValues?.heating ?? "")
   const [furnished, setFurnished] = useState(initialValues?.furnished ?? "")
   const [services, setServices] = useState<string[]>(
@@ -153,8 +163,10 @@ export function NewListingForm({
   function applyCategory(value: PropertyCategory) {
     setCategory(value)
     const f = CATEGORY_FIELD_FLAGS[value]
-    if (!f.rooms) setRooms("")
-    if (!f.floor) setFloor("")
+    if (!f.rooms) setRoomCount("")
+    if (!f.floorNumber) setFloorNumber("")
+    if (!f.propertyFloors) setPropertyFloors("")
+    if (!f.buildingFloors) setBuildingFloors("")
     if (!f.heating) setHeating("")
     if (!f.furnished) setFurnished("")
     if (!f.services) setServices([])
@@ -203,6 +215,39 @@ export function NewListingForm({
           setStepError("أدخل المساحة بالمتر المربع.")
           return
         }
+      }
+      if (flags.rooms && roomCount === "") {
+        setStepError("اختر عدد الغرف.")
+        return
+      }
+      if (flags.floorNumber && floorNumber === "") {
+        setStepError("اختر رقم طابق الوحدة.")
+        return
+      }
+      if (flags.propertyFloors && propertyFloors === "") {
+        setStepError("اختر عدد طوابق العقار نفسه.")
+        return
+      }
+      if (flags.buildingFloors && buildingFloors === "") {
+        setStepError("اختر إجمالي طوابق المبنى.")
+        return
+      }
+      if (
+        floorNumber !== "" &&
+        buildingFloors !== "" &&
+        Number(floorNumber) >= 0 &&
+        Number(floorNumber) > Number(buildingFloors)
+      ) {
+        setStepError("رقم طابق الوحدة لا يمكن أن يتجاوز إجمالي طوابق المبنى.")
+        return
+      }
+      if (
+        propertyFloors !== "" &&
+        buildingFloors !== "" &&
+        Number(propertyFloors) > Number(buildingFloors)
+      ) {
+        setStepError("عدد طوابق العقار لا يمكن أن يتجاوز إجمالي طوابق المبنى.")
+        return
       }
       setStep("location")
       return
@@ -287,9 +332,27 @@ export function NewListingForm({
       <input type="hidden" name="deal" value={deal} />
       <input type="hidden" name="title" value={title} />
       <input type="hidden" name="price" value={price} />
-      <input type="hidden" name="rooms" value={flags.rooms ? rooms : ""} />
+      <input
+        type="hidden"
+        name="roomCount"
+        value={flags.rooms ? roomCount : ""}
+      />
       <input type="hidden" name="areaM2" value={flags.areaM2 ? areaM2 : ""} />
-      <input type="hidden" name="floor" value={flags.floor ? floor : ""} />
+      <input
+        type="hidden"
+        name="floorNumber"
+        value={flags.floorNumber ? floorNumber : ""}
+      />
+      <input
+        type="hidden"
+        name="propertyFloors"
+        value={flags.propertyFloors ? propertyFloors : ""}
+      />
+      <input
+        type="hidden"
+        name="buildingFloors"
+        value={flags.buildingFloors ? buildingFloors : ""}
+      />
       <input type="hidden" name="heating" value={flags.heating ? heating : ""} />
       <input
         type="hidden"
@@ -439,17 +502,21 @@ export function NewListingForm({
             flags={flags}
             title={title}
             price={price}
-            rooms={rooms}
+            roomCount={roomCount}
             areaM2={areaM2}
-            floor={floor}
+            floorNumber={floorNumber}
+            propertyFloors={propertyFloors}
+            buildingFloors={buildingFloors}
             heating={heating}
             furnished={furnished}
             services={services}
             onTitleChange={setTitle}
             onPriceChange={setPrice}
-            onRoomsChange={setRooms}
+            onRoomCountChange={setRoomCount}
             onAreaM2Change={setAreaM2}
-            onFloorChange={setFloor}
+            onFloorNumberChange={setFloorNumber}
+            onPropertyFloorsChange={setPropertyFloors}
+            onBuildingFloorsChange={setBuildingFloors}
             onHeatingChange={setHeating}
             onFurnishedChange={setFurnished}
             onServicesChange={setServices}

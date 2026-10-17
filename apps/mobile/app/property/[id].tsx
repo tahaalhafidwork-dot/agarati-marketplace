@@ -32,6 +32,17 @@ import { colors, radii, spacing, type } from "../../src/theme/tokens"
 
 const width = Dimensions.get("window").width
 
+function toArabicNumber(value: number): string {
+  return String(value).replace(/\d/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]!)
+}
+
+function formatFloorCount(value: number): string {
+  if (value === 1) return "طابق واحد"
+  if (value === 2) return "طابقان (دوبلكس)"
+  if (value === 3) return "٣ طوابق (تربلكس)"
+  return `${toArabicNumber(value)} طوابق`
+}
+
 /** Property detail — visual parity with web mobile detail. */
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -168,8 +179,28 @@ export default function PropertyDetailScreen() {
       value: `${dealLabels[item.deal]} · ${item.type}`,
     },
     { label: "م² (صافي)", value: item.areaM2 },
-    { label: "الغرف", value: item.rooms },
-    { label: "الطابق", value: item.floor ?? "—" },
+    ...(item.roomCount != null || item.rooms !== "—"
+      ? [{ label: "عدد الغرف", value: item.rooms }]
+      : []),
+    ...(item.floorNumber != null && item.floor
+      ? [{ label: "طابق الوحدة", value: item.floor }]
+      : []),
+    ...(item.propertyFloors != null
+      ? [
+          {
+            label: "عدد طوابق العقار",
+            value: formatFloorCount(item.propertyFloors),
+          },
+        ]
+      : []),
+    ...(item.buildingFloors != null
+      ? [
+          {
+            label: "إجمالي طوابق المبنى",
+            value: formatFloorCount(item.buildingFloors),
+          },
+        ]
+      : []),
     { label: "التدفئة", value: item.heating ?? "—" },
     { label: "الأثاث", value: item.furnished ?? "—" },
     { label: "المنطقة", value: item.area },

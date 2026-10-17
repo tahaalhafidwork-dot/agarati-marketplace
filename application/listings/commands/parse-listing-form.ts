@@ -1,5 +1,15 @@
 import { normalizeIraqPhone } from "@/lib/phone"
 import { parseServicesFromForm } from "@/lib/listing-services"
+import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
+import {
+  BUILDING_FLOOR_OPTIONS,
+  FLOOR_NUMBER_OPTIONS,
+  PROPERTY_FLOOR_OPTIONS,
+  legacyFloorValue,
+  legacyRoomsValue,
+  parseIntegerOption,
+  roomCountOptionsForCategory,
+} from "@/lib/listing-attributes"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 
 export type ContactMethod = "WHATSAPP_PHONE" | "ALL" | "CHAT"
@@ -11,8 +21,12 @@ export type ParsedListingForm = {
   deal: DealType
   priceIqd: number
   rooms: string | null
+  roomCount: number | null
   areaM2: number | null
   floor: string | null
+  floorNumber: number | null
+  propertyFloors: number | null
+  buildingFloors: number | null
   heating: string | null
   furnished: string | null
   citySlug: string
@@ -36,12 +50,39 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
   const description = String(formData.get("description") ?? "").trim()
   const category = String(formData.get("category") ?? "") as PropertyCategory
   const deal = String(formData.get("deal") ?? "") as DealType
+  const flags = CATEGORY_FIELD_FLAGS[category]
   const priceRaw = String(formData.get("price") ?? "").replace(/\D/g, "")
   const priceIqd = Number(priceRaw)
-  const rooms = String(formData.get("rooms") ?? "").trim() || null
+  const roomCount = flags?.rooms
+    ? parseIntegerOption(
+        formData.get("roomCount"),
+        roomCountOptionsForCategory(category)
+      )
+    : null
+  const rooms = legacyRoomsValue(roomCount)
   const areaM2Raw = String(formData.get("areaM2") ?? "").replace(/\D/g, "")
   const areaM2 = areaM2Raw ? Number(areaM2Raw) : null
-  const floor = String(formData.get("floor") ?? "").trim() || null
+  const floorNumber = flags?.floorNumber
+    ? parseIntegerOption(formData.get("floorNumber"), FLOOR_NUMBER_OPTIONS)
+    : null
+  const propertyFloors = flags?.propertyFloors
+    ? parseIntegerOption(
+        formData.get("propertyFloors"),
+        PROPERTY_FLOOR_OPTIONS
+      )
+    : null
+  const buildingFloors = flags?.buildingFloors
+    ? parseIntegerOption(
+        formData.get("buildingFloors"),
+        BUILDING_FLOOR_OPTIONS
+      )
+    : null
+  const floor = legacyFloorValue({
+    category,
+    floorNumber,
+    propertyFloors,
+    buildingFloors,
+  })
   const heating = String(formData.get("heating") ?? "").trim() || null
   const furnished = String(formData.get("furnished") ?? "").trim() || null
   const citySlug = String(formData.get("city") ?? "").trim()
@@ -76,8 +117,12 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
     deal,
     priceIqd,
     rooms,
+    roomCount,
     areaM2,
     floor,
+    floorNumber,
+    propertyFloors,
+    buildingFloors,
     heating,
     furnished,
     citySlug,
@@ -112,6 +157,34 @@ export function validateListingFormCore(
   }
   if (!data.priceIqd || Number.isNaN(data.priceIqd)) {
     return "أدخل سعراً صحيحاً."
+  }
+  const flags = CATEGORY_FIELD_FLAGS[data.category]
+  if (flags?.rooms && data.roomCount == null) {
+    return "اختر عدد الغرف من القائمة."
+  }
+  if (flags?.floorNumber && data.floorNumber == null) {
+    return "اختر رقم طابق الوحدة من القائمة."
+  }
+  if (flags?.propertyFloors && data.propertyFloors == null) {
+    return "اختر عدد طوابق العقار من القائمة."
+  }
+  if (flags?.buildingFloors && data.buildingFloors == null) {
+    return "اختر إجمالي طوابق المبنى من القائمة."
+  }
+  if (
+    data.floorNumber != null &&
+    data.floorNumber >= 0 &&
+    data.buildingFloors != null &&
+    data.floorNumber > data.buildingFloors
+  ) {
+    return "رقم طابق الوحدة لا يمكن أن يتجاوز إجمالي طوابق المبنى."
+  }
+  if (
+    data.propertyFloors != null &&
+    data.buildingFloors != null &&
+    data.propertyFloors > data.buildingFloors
+  ) {
+    return "عدد طوابق العقار لا يمكن أن يتجاوز إجمالي طوابق المبنى."
   }
   if (
     data.mapLat == null ||

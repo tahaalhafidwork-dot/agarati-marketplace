@@ -13,6 +13,13 @@ import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { dealLabels } from "@/lib/sample-listings"
 import type { AdvertiserKind } from "@/lib/demo-advertisers"
 import { userAdvertiserSlug } from "@/lib/demo-advertisers"
+import {
+  formatFloorNumber,
+  formatPropertyFloors,
+  inferLegacyFloorValues,
+  parseLegacyRoomCount,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
 
 export const categoryToPrisma: Record<PropertyCategory, PrismaCategory> = {
   apartment: "APARTMENT",
@@ -61,8 +68,12 @@ export type PublicListingCard = {
   price: string
   meta: string
   rooms: string
+  roomCount?: number
   areaM2: string
   floor?: string
+  floorNumber?: number
+  propertyFloors?: number
+  buildingFloors?: number
   deal: DealType
   category: PropertyCategory
   type: string
@@ -142,6 +153,31 @@ export function toPublicListingCard(
   const imageUrls = listing.images
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((img) => listingImagePublicUrl(img.storagePath))
+  const legacyFloors = inferLegacyFloorValues(category, listing.floor)
+  const roomCount =
+    listing.roomCount ?? parseLegacyRoomCount(listing.rooms) ?? undefined
+  const floorNumber =
+    listing.floorNumber ?? legacyFloors.floorNumber ?? undefined
+  const propertyFloors =
+    listing.propertyFloors ?? legacyFloors.propertyFloors ?? undefined
+  const buildingFloors =
+    listing.buildingFloors ?? legacyFloors.buildingFloors ?? undefined
+  const rooms =
+    roomCount != null ? toArabicNumber(roomCount) : listing.rooms ?? "—"
+  const floor =
+    floorNumber != null ? formatFloorNumber(floorNumber) : undefined
+  const propertyFloorsMeta =
+    propertyFloors != null && propertyFloors > 1
+      ? formatPropertyFloors(propertyFloors)
+      : null
+  const structuredMeta = [
+    roomCount != null ? `${toArabicNumber(roomCount)} غرف` : listing.rooms,
+    listing.areaM2 ? `${listing.areaM2} م²` : null,
+    floor,
+    propertyFloorsMeta,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 
   return {
     id: listing.id,
@@ -150,14 +186,14 @@ export function toPublicListingCard(
     area: formatShortArea(location),
     location,
     price: formatPriceIqd(listing.priceIqd, deal),
-    meta:
-      listing.meta ||
-      [listing.rooms, listing.areaM2 ? `${listing.areaM2} م²` : null, listing.floor]
-        .filter(Boolean)
-        .join(" · "),
-    rooms: listing.rooms ?? "—",
+    meta: structuredMeta || listing.meta || "",
+    rooms,
+    roomCount,
     areaM2: listing.areaM2 != null ? String(listing.areaM2) : "—",
-    floor: listing.floor ?? undefined,
+    floor,
+    floorNumber,
+    propertyFloors,
+    buildingFloors,
     deal,
     category,
     type: categoryLabelAr[category],

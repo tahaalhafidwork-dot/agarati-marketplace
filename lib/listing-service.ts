@@ -52,13 +52,44 @@ import {
   matchesSmartSearch,
   parseSearchIntent,
 } from "@/lib/search"
+import {
+  formatFloorNumber,
+  formatPropertyFloors,
+  inferLegacyFloorValues,
+  parseLegacyRoomCount,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
 
 function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
-  return queryListings(query).map((item) =>
-    enrichSampleCardOwner(
+  return queryListings(query).map((item) => {
+    const legacyFloors = inferLegacyFloorValues(item.category, item.floor)
+    const roomCount = item.roomCount ?? parseLegacyRoomCount(item.rooms)
+    const floorNumber = item.floorNumber ?? legacyFloors.floorNumber
+    const propertyFloors =
+      item.propertyFloors ?? legacyFloors.propertyFloors ?? undefined
+    const floor =
+      floorNumber == null ? undefined : formatFloorNumber(floorNumber)
+    return enrichSampleCardOwner(
       {
         ...item,
         id: item.slug,
+        meta: [
+          roomCount == null ? item.rooms : `${toArabicNumber(roomCount)} غرف`,
+          item.areaM2 === "—" ? null : `${item.areaM2} م²`,
+          floor,
+          propertyFloors != null && propertyFloors > 1
+            ? formatPropertyFloors(propertyFloors)
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        rooms: roomCount == null ? item.rooms : toArabicNumber(roomCount),
+        roomCount: roomCount ?? undefined,
+        floor,
+        floorNumber: floorNumber ?? undefined,
+        propertyFloors,
+        buildingFloors:
+          item.buildingFloors ?? legacyFloors.buildingFloors ?? undefined,
         ownerPhone: "9647501234567",
         ownerWhatsapp: "9647501234567",
         listingNumber: formatListingNumber(item.listingNumber),
@@ -67,7 +98,7 @@ function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
       },
       item.slug
     )
-  )
+  })
 }
 
 /**
@@ -210,8 +241,10 @@ export function buildListingWhere(query: ListingQuery): Prisma.ListingWhereInput
   if (query.district) where.districtSlug = query.district
   if (query.neighborhood) where.neighborhoodSlug = query.neighborhood
   if (query.complex) where.complexSlug = query.complex
-  if (query.rooms?.length) {
-    where.rooms = { in: query.rooms }
+  if (query.rooms != null) where.roomCount = query.rooms
+  if (query.floor != null) where.floorNumber = query.floor
+  if (query.propertyFloors != null) {
+    where.propertyFloors = query.propertyFloors
   }
   if (query.minPrice != null || query.maxPrice != null) {
     where.priceIqd = {}

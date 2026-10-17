@@ -4,6 +4,20 @@ import { ListingServicesField } from "@/components/property/listing-services-fie
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  BUILDING_FLOOR_OPTIONS,
+  FLOOR_NUMBER_OPTIONS,
+  PROPERTY_FLOOR_OPTIONS,
+  roomCountOptionsForCategory,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
+import {
   DEAL_OPTIONS,
   type CategoryFieldFlags,
 } from "@/lib/listing-form-config"
@@ -19,20 +33,53 @@ export type DetailsStepProps = {
   flags: CategoryFieldFlags
   title: string
   price: string
-  rooms: string
+  roomCount: string
   areaM2: string
-  floor: string
+  floorNumber: string
+  propertyFloors: string
+  buildingFloors: string
   heating: string
   furnished: string
   services: string[]
   onTitleChange: (value: string) => void
   onPriceChange: (value: string) => void
-  onRoomsChange: (value: string) => void
+  onRoomCountChange: (value: string) => void
   onAreaM2Change: (value: string) => void
-  onFloorChange: (value: string) => void
+  onFloorNumberChange: (value: string) => void
+  onPropertyFloorsChange: (value: string) => void
+  onBuildingFloorsChange: (value: string) => void
   onHeatingChange: (value: string) => void
   onFurnishedChange: (value: string) => void
   onServicesChange: (value: string[]) => void
+}
+
+function NumberSelect({
+  id,
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  id: string
+  value: string
+  options: readonly number[]
+  placeholder: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <Select value={value || null} onValueChange={(next) => onChange(next ?? "")}>
+      <SelectTrigger id={id} className="h-10 w-full bg-white">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option} value={String(option)}>
+            {toArabicNumber(option)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 }
 
 export function DetailsStep({
@@ -41,17 +88,21 @@ export function DetailsStep({
   flags,
   title,
   price,
-  rooms,
+  roomCount,
   areaM2,
-  floor,
+  floorNumber,
+  propertyFloors,
+  buildingFloors,
   heating,
   furnished,
   services,
   onTitleChange,
   onPriceChange,
-  onRoomsChange,
+  onRoomCountChange,
   onAreaM2Change,
-  onFloorChange,
+  onFloorNumberChange,
+  onPropertyFloorsChange,
+  onBuildingFloorsChange,
   onHeatingChange,
   onFurnishedChange,
   onServicesChange,
@@ -115,26 +166,62 @@ export function DetailsStep({
         ) : null}
         {flags.rooms ? (
           <div className="space-y-2">
-            <Label htmlFor="roomsUi">الغرف</Label>
-            <Input
-              id="roomsUi"
-              value={rooms}
-              onChange={(e) => onRoomsChange(e.target.value)}
-              placeholder="٣+١"
+            <Label htmlFor="roomCountUi">عدد الغرف *</Label>
+            <NumberSelect
+              id="roomCountUi"
+              value={roomCount}
+              options={roomCountOptionsForCategory(category)}
+              onChange={onRoomCountChange}
+              placeholder="اختر العدد"
             />
+            <p className="text-[0.65rem] text-muted-foreground">
+              اختر ٠ للاستوديو؛ لا تُقبل كتابة حرة لضمان دقة البحث.
+            </p>
           </div>
         ) : null}
-        {flags.floor ? (
+        {flags.floorNumber ? (
           <div className="space-y-2">
-            <Label htmlFor="floorUi">
-              {category === "building" ? "الطوابق / الوصف" : "الطابق"}
-            </Label>
-            <Input
-              id="floorUi"
-              value={floor}
-              onChange={(e) => onFloorChange(e.target.value)}
-              placeholder={category === "building" ? "٨ طوابق" : "٦ / ١٢"}
+            <Label htmlFor="floorNumberUi">رقم طابق الوحدة *</Label>
+            <NumberSelect
+              id="floorNumberUi"
+              value={floorNumber}
+              options={FLOOR_NUMBER_OPTIONS}
+              onChange={onFloorNumberChange}
+              placeholder="اختر الطابق"
             />
+            <p className="text-[0.65rem] text-muted-foreground">
+              ٠ = أرضي، والأرقام السالبة = قبو.
+            </p>
+          </div>
+        ) : null}
+        {flags.propertyFloors ? (
+          <div className="space-y-2">
+            <Label htmlFor="propertyFloorsUi">عدد طوابق العقار *</Label>
+            <NumberSelect
+              id="propertyFloorsUi"
+              value={propertyFloors}
+              options={PROPERTY_FLOOR_OPTIONS}
+              onChange={onPropertyFloorsChange}
+              placeholder="اختر العدد"
+            />
+            <p className="text-[0.65rem] text-muted-foreground">
+              ٢ = دوبلكس، ٣ = تربلكس؛ المقصود الطوابق التي يشغلها العقار نفسه.
+            </p>
+          </div>
+        ) : null}
+        {flags.buildingFloors ? (
+          <div className="space-y-2">
+            <Label htmlFor="buildingFloorsUi">إجمالي طوابق المبنى *</Label>
+            <NumberSelect
+              id="buildingFloorsUi"
+              value={buildingFloors}
+              options={BUILDING_FLOOR_OPTIONS}
+              onChange={onBuildingFloorsChange}
+              placeholder="اختر العدد"
+            />
+            <p className="text-[0.65rem] text-muted-foreground">
+              يختلف عن عدد طوابق الوحدة أو العقار المعلن.
+            </p>
           </div>
         ) : null}
         {flags.heating ? (

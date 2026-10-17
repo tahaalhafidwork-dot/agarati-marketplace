@@ -21,8 +21,12 @@ export type SampleListing = {
   price: string
   meta: string
   rooms: string
+  roomCount?: number
   areaM2: string
   floor?: string
+  floorNumber?: number
+  propertyFloors?: number
+  buildingFloors?: number
   deal: DealType
   /** Machine category — matches ?type= in /properties */
   category: PropertyCategory
@@ -1758,12 +1762,15 @@ export const categoryTree = [
 ] as const
 
 export const roomOptions = [
-  "استوديو",
-  "١+١",
-  "٢+١",
-  "٣+١",
-  "٤+١",
-  "٥+١ فأكثر",
+  "٠",
+  "١",
+  "٢",
+  "٣",
+  "٤",
+  "٥",
+  "٦",
+  "٧",
+  "٨",
 ] as const
 
 export const buildingAgeOptions = [

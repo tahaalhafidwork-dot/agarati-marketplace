@@ -14,6 +14,14 @@ import {
   prismaToCategory,
   prismaToDeal,
 } from "@/lib/listings"
+import {
+  formatBuildingFloors,
+  formatFloorNumber,
+  formatPropertyFloors,
+  inferLegacyFloorValues,
+  parseLegacyRoomCount,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
 import { categoryLabels, dealLabels } from "@/lib/sample-listings"
 import { listingImagePublicUrl } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
@@ -74,6 +82,15 @@ export default async function AdminPropertyDetailPage({
 
   const category = prismaToCategory[listing.category]
   const deal = prismaToDeal[listing.deal]
+  const legacyFloors = inferLegacyFloorValues(category, listing.floor)
+  const roomCount =
+    listing.roomCount ?? parseLegacyRoomCount(listing.rooms) ?? undefined
+  const floorNumber =
+    listing.floorNumber ?? legacyFloors.floorNumber ?? undefined
+  const propertyFloors =
+    listing.propertyFloors ?? legacyFloors.propertyFloors ?? undefined
+  const buildingFloors =
+    listing.buildingFloors ?? legacyFloors.buildingFloors ?? undefined
   const area = formatPublicArea({
     city: listing.citySlug,
     district: listing.districtSlug,
@@ -96,12 +113,28 @@ export default async function AdminPropertyDetailPage({
     { label: "الصفقة", value: dealLabels[deal] ?? deal },
     { label: "السعر", value: price },
     { label: "المنطقة", value: area },
-    { label: "الغرف", value: listing.rooms ?? "—" },
+    {
+      label: "عدد الغرف",
+      value: roomCount == null ? "—" : toArabicNumber(roomCount),
+    },
     {
       label: "المساحة",
       value: listing.areaM2 != null ? `${listing.areaM2} م²` : "—",
     },
-    { label: "الطابق", value: listing.floor ?? "—" },
+    {
+      label: "طابق الوحدة",
+      value: floorNumber == null ? "—" : formatFloorNumber(floorNumber),
+    },
+    {
+      label: "عدد طوابق العقار",
+      value:
+        propertyFloors == null ? "—" : formatPropertyFloors(propertyFloors),
+    },
+    {
+      label: "إجمالي طوابق المبنى",
+      value:
+        buildingFloors == null ? "—" : formatBuildingFloors(buildingFloors),
+    },
     { label: "التدفئة", value: listing.heating ?? "—" },
     { label: "مفروش", value: listing.furnished ?? "—" },
     {

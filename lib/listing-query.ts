@@ -21,6 +21,16 @@ import {
   type SampleListing,
 } from "@/lib/sample-listings"
 import { matchesSmartSearch } from "@/lib/search"
+import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
+import {
+  FLOOR_NUMBER_OPTIONS,
+  PROPERTY_FLOOR_OPTIONS,
+  inferLegacyFloorValues,
+  parseIntegerOption,
+  parseLegacyRoomCount,
+  roomCountOptionsForCategory,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
 
 export type SortKey =
   | "newest"
@@ -37,7 +47,9 @@ export type ListingQuery = {
   district?: string
   neighborhood?: string
   complex?: string
-  rooms?: string[]
+  rooms?: number
+  floor?: number
+  propertyFloors?: number
   minPrice?: number
   maxPrice?: number
   minArea?: number
@@ -55,14 +67,8 @@ export const sortOptions: { value: SortKey; label: string }[] = [
   { value: "area-desc", label: "المساحة: من الأكبر" },
 ]
 
-export const filterRoomOptions = [
-  "٢+١",
-  "٣+١",
-  "٤+١",
-  "٥+١",
-  "٦+٢",
-  "٧+٢",
-] as const
+export const filterFloorOptions = FLOOR_NUMBER_OPTIONS
+export const filterPropertyFloorOptions = PROPERTY_FLOOR_OPTIONS
 
 const DATE_RANK: Record<string, number> = {
   اليوم: 0,
@@ -114,22 +120,41 @@ export function parseListingQuery(
   const neighborhood = get("neighborhood")
   const complex = get("complex")
   const roomsRaw = get("rooms")
+  const floorRaw = get("floor")
+  const propertyFloorsRaw = get("propertyFloors")
   const sortRaw = get("sort")
   const minPrice = get("minPrice")
   const maxPrice = get("maxPrice")
   const minArea = get("minArea")
   const maxArea = get("maxArea")
   const q = get("q")
+  const category = type && isPropertyCategory(type) ? type : undefined
+  const categoryFlags = category ? CATEGORY_FIELD_FLAGS[category] : undefined
+  const roomOptions = roomCountOptionsForCategory(category ?? "")
+  const legacyRoomCount = parseLegacyRoomCount(roomsRaw)
+  const parsedRoomCount =
+    parseIntegerOption(
+      roomsRaw ? roomsRaw.split(",")[0] : null,
+      roomOptions
+    ) ??
+    (legacyRoomCount != null && roomOptions.includes(legacyRoomCount)
+      ? legacyRoomCount
+      : undefined)
 
   return {
-    category: type && isPropertyCategory(type) ? type : undefined,
+    category,
     deal: deal && isDealType(deal) ? deal : undefined,
     city: city?.trim() || undefined,
     district: district?.trim() || undefined,
     neighborhood: neighborhood?.trim() || undefined,
     complex: complex?.trim() || undefined,
-    rooms: roomsRaw
-      ? roomsRaw.split(",").map((r) => r.trim()).filter(Boolean)
+    rooms: categoryFlags?.rooms ? parsedRoomCount : undefined,
+    floor: categoryFlags?.floorNumber
+      ? parseIntegerOption(floorRaw, FLOOR_NUMBER_OPTIONS) ?? undefined
+      : undefined,
+    propertyFloors: categoryFlags?.propertyFloors
+      ? parseIntegerOption(propertyFloorsRaw, PROPERTY_FLOOR_OPTIONS) ??
+        undefined
       : undefined,
     minPrice: minPrice
       ? Number(fromArabicDigits(minPrice)) || undefined
@@ -146,22 +171,6 @@ export function parseListingQuery(
     sort: sortRaw && isSortKey(sortRaw) ? sortRaw : "newest",
     q: q?.trim() || undefined,
   }
-}
-
-function matchesRooms(listingRooms: string, selected: string[]): boolean {
-  if (!selected.length) return true
-  if (listingRooms === "—") return false
-  return selected.some((room) => {
-    if (room === "٥+١ فأكثر" || room === "٥+١") {
-      return (
-        listingRooms === "٥+١" ||
-        listingRooms.startsWith("٥") ||
-        listingRooms.startsWith("٦") ||
-        listingRooms.startsWith("٧")
-      )
-    }
-    return listingRooms === room
-  })
 }
 
 export function queryListings(query: ListingQuery): SampleListing[] {
@@ -181,7 +190,19 @@ export function queryListings(query: ListingQuery): SampleListing[] {
     }
     if (query.complex && loc.complex !== query.complex) return false
 
-    if (query.rooms?.length && !matchesRooms(item.rooms, query.rooms)) {
+    const roomCount = item.roomCount ?? parseLegacyRoomCount(item.rooms)
+    if (query.rooms != null && roomCount !== query.rooms) return false
+
+    const legacyFloors = inferLegacyFloorValues(item.category, item.floor)
+    const floorNumber = item.floorNumber ?? legacyFloors.floorNumber
+    if (query.floor != null && floorNumber !== query.floor) return false
+
+    const propertyFloors =
+      item.propertyFloors ?? legacyFloors.propertyFloors
+    if (
+      query.propertyFloors != null &&
+      propertyFloors !== query.propertyFloors
+    ) {
       return false
     }
 
@@ -237,7 +258,11 @@ export function buildPropertiesHref(
   if (query.district) params.set("district", query.district)
   if (query.neighborhood) params.set("neighborhood", query.neighborhood)
   if (query.complex) params.set("complex", query.complex)
-  if (query.rooms?.length) params.set("rooms", query.rooms.join(","))
+  if (query.rooms != null) params.set("rooms", String(query.rooms))
+  if (query.floor != null) params.set("floor", String(query.floor))
+  if (query.propertyFloors != null) {
+    params.set("propertyFloors", String(query.propertyFloors))
+  }
   if (query.minPrice != null) params.set("minPrice", String(query.minPrice))
   if (query.maxPrice != null) params.set("maxPrice", String(query.maxPrice))
   if (query.minArea != null) params.set("minArea", String(query.minArea))
@@ -257,7 +282,9 @@ export function countActiveFilters(query: ListingQuery): number {
   if (query.district) n += 1
   if (query.neighborhood) n += 1
   if (query.complex) n += 1
-  if (query.rooms?.length) n += 1
+  if (query.rooms != null) n += 1
+  if (query.floor != null) n += 1
+  if (query.propertyFloors != null) n += 1
   if (query.minPrice != null || query.maxPrice != null) n += 1
   if (query.minArea != null || query.maxArea != null) n += 1
   if (query.q) n += 1
@@ -327,11 +354,25 @@ export function activeFilterChips(query: ListingQuery): {
       clearHref: without({ complex: undefined }),
     })
   }
-  if (query.rooms?.length) {
+  if (query.rooms != null) {
     chips.push({
       key: "rooms",
-      label: query.rooms.join(" · "),
+      label: `الغرف ${toArabicNumber(query.rooms)}`,
       clearHref: without({ rooms: undefined }),
+    })
+  }
+  if (query.floor != null) {
+    chips.push({
+      key: "floor",
+      label: `الطابق ${toArabicNumber(query.floor)}`,
+      clearHref: without({ floor: undefined }),
+    })
+  }
+  if (query.propertyFloors != null) {
+    chips.push({
+      key: "propertyFloors",
+      label: `طوابق العقار ${toArabicNumber(query.propertyFloors)}`,
+      clearHref: without({ propertyFloors: undefined }),
     })
   }
   if (query.minPrice != null || query.maxPrice != null) {

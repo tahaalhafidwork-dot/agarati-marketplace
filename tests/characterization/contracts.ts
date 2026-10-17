@@ -22,6 +22,14 @@ import {
   emptyFilterDraft,
 } from "@/components/search/listings-filter-fields"
 import { dealOptionsForCategory } from "@/lib/deals"
+import {
+  inferLegacyFloorValues,
+  parseLegacyRoomCount,
+} from "@/lib/listing-attributes"
+import {
+  parseListingForm,
+  validateListingFormCore,
+} from "@/application/listings/commands/parse-listing-form"
 import { prisma } from "@/lib/db"
 import {
   guestActions,
@@ -195,6 +203,78 @@ export function assertNavLocks(): string[] {
 
 export function assertListingFilterContracts(): string[] {
   const errors: string[] = []
+  const legacyRoomCount = parseLegacyRoomCount("٣+١")
+  const legacyDuplex = inferLegacyFloorValues("apartment", "دوبلكس")
+  if (legacyRoomCount !== 3 || legacyDuplex.propertyFloors !== 2) {
+    errors.push("legacy room and duplex values should normalize to numbers")
+  }
+  const unsupportedLandQuery = parseQuery({
+    type: "land",
+    rooms: "3",
+    floor: "2",
+    propertyFloors: "2",
+  })
+  if (
+    unsupportedLandQuery.rooms != null ||
+    unsupportedLandQuery.floor != null ||
+    unsupportedLandQuery.propertyFloors != null
+  ) {
+    errors.push("URL parsing should discard unsupported land attributes")
+  }
+  if (parseQuery({ type: "apartment", rooms: "٠" }).rooms !== 0) {
+    errors.push("apartment room filter should preserve studio value zero")
+  }
+
+  const listingForm = new FormData()
+  for (const [key, value] of Object.entries({
+    title: "شقة اختبار",
+    description: "وصف كاف لاختبار الحقول الرقمية الجديدة.",
+    category: "apartment",
+    deal: "sale",
+    price: "185000000",
+    roomCount: "3",
+    areaM2: "135",
+    floorNumber: "6",
+    propertyFloors: "2",
+    buildingFloors: "12",
+    city: "erbil",
+    district: "erbil-center",
+    neighborhood: "ankawa",
+    mapLat: "36.19",
+    mapLng: "44.01",
+  })) {
+    listingForm.set(key, value)
+  }
+  const parsedListing = parseListingForm(listingForm)
+  if (
+    parsedListing.roomCount !== 3 ||
+    parsedListing.rooms !== "٣" ||
+    parsedListing.floorNumber !== 6 ||
+    parsedListing.propertyFloors !== 2 ||
+    parsedListing.buildingFloors !== 12 ||
+    parsedListing.floor !== "٦ / ١٢" ||
+    validateListingFormCore(parsedListing, "create") !== null
+  ) {
+    errors.push("listing form should persist normalized numeric room and floor data")
+  }
+
+  listingForm.set("buildingFloors", "5")
+  const impossibleFloor = parseListingForm(listingForm)
+  if (!validateListingFormCore(impossibleFloor, "create")) {
+    errors.push("listing form should reject a unit floor above the building total")
+  }
+
+  listingForm.set("category", "land")
+  const forgedLand = parseListingForm(listingForm)
+  if (
+    forgedLand.roomCount != null ||
+    forgedLand.floorNumber != null ||
+    forgedLand.propertyFloors != null ||
+    forgedLand.buildingFloors != null
+  ) {
+    errors.push("server parser should discard room and floor fields for land")
+  }
+
   const baseParams = {
     type: "apartment",
     deal: "sale",
@@ -205,7 +285,9 @@ export function assertListingFilterContracts(): string[] {
     maxPrice: "185000000",
     minArea: "135",
     maxArea: "135",
-    rooms: "٣+١",
+    rooms: "3",
+    floor: "6",
+    propertyFloors: "1",
     q: "عنكاوا",
   }
   const match = queryListings(parseQuery(baseParams))
@@ -222,7 +304,9 @@ export function assertListingFilterContracts(): string[] {
     neighborhoodSlug: string
     priceIqd: { gte: number; lte: number }
     areaM2: { gte: number; lte: number }
-    rooms: { in: string[] }
+    roomCount: number
+    floorNumber: number
+    propertyFloors: number
     title: { contains: string }
   }
   if (
@@ -235,7 +319,9 @@ export function assertListingFilterContracts(): string[] {
     whereFilters.priceIqd.lte !== 185000000 ||
     whereFilters.areaM2.gte !== 135 ||
     whereFilters.areaM2.lte !== 135 ||
-    whereFilters.rooms.in[0] !== "٣+١" ||
+    whereFilters.roomCount !== 3 ||
+    whereFilters.floorNumber !== 6 ||
+    whereFilters.propertyFloors !== 1 ||
     whereFilters.title.contains !== "عنكاوا"
   ) {
     errors.push("database where clause should include every selected filter")
@@ -254,7 +340,9 @@ export function assertListingFilterContracts(): string[] {
     ["maximum price", { type: "apartment", maxPrice: "184999999" }],
     ["minimum area", { type: "apartment", minArea: "136" }],
     ["maximum area", { type: "apartment", maxArea: "134" }],
-    ["rooms", { type: "apartment", rooms: "٤+١" }],
+    ["rooms", { type: "apartment", rooms: "4" }],
+    ["floor", { type: "apartment", floor: "5" }],
+    ["property floors", { type: "apartment", propertyFloors: "2" }],
     ["text search", { type: "apartment", q: "عنوان غير موجود" }],
   ]
   for (const [name, params] of mismatches) {
@@ -281,7 +369,9 @@ export function assertListingFilterContracts(): string[] {
     roundTrip.neighborhood !== "ankawa" ||
     roundTrip.minPrice !== 185000000 ||
     roundTrip.maxArea !== 135 ||
-    roundTrip.rooms?.[0] !== "٣+١" ||
+    roundTrip.rooms !== 3 ||
+    roundTrip.floor !== 6 ||
+    roundTrip.propertyFloors !== 1 ||
     roundTrip.q !== "عنكاوا" ||
     roundTrip.sort !== "price-asc"
   ) {
@@ -300,7 +390,9 @@ export function assertListingFilterContracts(): string[] {
     searched.deal !== "sale" ||
     searched.city !== "erbil" ||
     searched.minPrice !== 185000000 ||
-    searched.rooms?.[0] !== "٣+١" ||
+    searched.rooms !== 3 ||
+    searched.floor !== 6 ||
+    searched.propertyFloors !== 1 ||
     searched.q !== "عنكاوا"
   ) {
     errors.push("submitting search should preserve existing property filters")
@@ -329,10 +421,17 @@ export function assertListingFilterContracts(): string[] {
   const landDraft = draftFromQuery({
     category: "land",
     deal: "daily",
-    rooms: ["٣+١"],
+    rooms: 3,
+    floor: 2,
+    propertyFloors: 2,
   })
-  if (landDraft.deal || landDraft.rooms.length > 0) {
-    errors.push("land filters should omit unsupported daily deal and rooms")
+  if (
+    landDraft.deal ||
+    landDraft.rooms ||
+    landDraft.floor ||
+    landDraft.propertyFloors
+  ) {
+    errors.push("land filters should omit unsupported room and floor filters")
   }
   if (dealOptionsForCategory("land").some((option) => option.value === "daily")) {
     errors.push("land deal options should not include daily rent")

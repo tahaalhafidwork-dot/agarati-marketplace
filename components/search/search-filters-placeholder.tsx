@@ -66,7 +66,7 @@ export function SearchFiltersPlaceholder({
   }
 
   if (variant === "chips") {
-    const chips = ["للبيع", "شقة", "أربيل", "٣+١", "م²"]
+    const chips = ["للبيع", "شقة", "أربيل", "٣ غرف", "م²"]
     return (
       <div className={cn("flex flex-wrap gap-1.5", className)}>
         {chips.map((chip) => (
@@ -209,9 +209,9 @@ export function SearchFiltersPlaceholder({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2">٢+١</SelectItem>
-                <SelectItem value="3">٣+١</SelectItem>
-                <SelectItem value="4">٤+١</SelectItem>
+                <SelectItem value="2">٢</SelectItem>
+                <SelectItem value="3">٣</SelectItem>
+                <SelectItem value="4">٤</SelectItem>
               </SelectContent>
             </Select>
           </FieldStack>

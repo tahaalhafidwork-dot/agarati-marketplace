@@ -28,6 +28,10 @@ import {
   fetchPublicListings,
 } from "@/lib/listing-service"
 import { dealLabels } from "@/lib/sample-listings"
+import {
+  formatBuildingFloors,
+  formatPropertyFloors,
+} from "@/lib/listing-attributes"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -147,8 +151,28 @@ export default async function PropertyDetailPage({
       value: `${dealLabels[listing.deal]} · ${listing.type}`,
     },
     { label: "م² (صافي)", value: listing.areaM2 },
-    { label: "الغرف", value: listing.rooms },
-    { label: "الطابق", value: listing.floor ?? "—" },
+    ...(listing.roomCount != null || listing.rooms !== "—"
+      ? [{ label: "عدد الغرف", value: listing.rooms }]
+      : []),
+    ...(listing.floorNumber != null && listing.floor
+      ? [{ label: "طابق الوحدة", value: listing.floor }]
+      : []),
+    ...(listing.propertyFloors != null
+      ? [
+          {
+            label: "عدد طوابق العقار",
+            value: formatPropertyFloors(listing.propertyFloors),
+          },
+        ]
+      : []),
+    ...(listing.buildingFloors != null
+      ? [
+          {
+            label: "إجمالي طوابق المبنى",
+            value: formatBuildingFloors(listing.buildingFloors),
+          },
+        ]
+      : []),
     { label: "التدفئة", value: listing.heating ?? "—" },
     { label: "الأثاث", value: listing.furnished ?? "—" },
     { label: "المنطقة", value: areaLabel },

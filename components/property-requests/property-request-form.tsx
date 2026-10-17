@@ -24,6 +24,12 @@ import {
   neighborhoodsOf,
 } from "@/lib/locations"
 import { DEAL_OPTIONS } from "@/lib/deals"
+import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
+import {
+  parseLegacyRoomCount,
+  roomCountOptionsForCategory,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
 import {
   categoryLabels,
   type DealType,
@@ -51,6 +57,9 @@ export function PropertyRequestForm({ mode = "create", initialValues }: Props) {
     initialValues?.category ?? ""
   )
   const [deal, setDeal] = useState<DealType | "">(initialValues?.deal ?? "")
+  const [roomCount, setRoomCount] = useState(
+    String(parseLegacyRoomCount(initialValues?.rooms) ?? "")
+  )
   const [city, setCity] = useState(initialValues?.citySlug ?? "")
   const [district, setDistrict] = useState(initialValues?.districtSlug ?? "")
   const [neighborhood, setNeighborhood] = useState(
@@ -94,7 +103,7 @@ export function PropertyRequestForm({ mode = "create", initialValues }: Props) {
           required
           maxLength={120}
           defaultValue={initialValues?.title}
-          placeholder="مثال: أبحث عن شقة ٣+١ للإيجار في أربيل"
+          placeholder="مثال: أبحث عن شقة بثلاث غرف للإيجار في أربيل"
           className="h-11 rounded-xl border-[color:var(--brand-gold)]/30 bg-white"
         />
       </div>
@@ -119,7 +128,11 @@ export function PropertyRequestForm({ mode = "create", initialValues }: Props) {
           <input type="hidden" name="category" value={category} />
           <Select
             value={category}
-            onValueChange={(v) => setCategory((v as PropertyCategory) ?? "")}
+            onValueChange={(v) => {
+              const next = (v as PropertyCategory) ?? ""
+              setCategory(next)
+              if (!next || !CATEGORY_FIELD_FLAGS[next].rooms) setRoomCount("")
+            }}
           >
             <SelectTrigger className="h-11 rounded-xl bg-white">
               <SelectValue placeholder="اختياري" />
@@ -232,16 +245,31 @@ export function PropertyRequestForm({ mode = "create", initialValues }: Props) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-2">
-          <Label htmlFor="rooms">الغرف</Label>
-          <Input
-            id="rooms"
-            name="rooms"
-            defaultValue={initialValues?.rooms ?? ""}
-            placeholder="٣+١"
-            className="h-11 rounded-xl bg-white"
-          />
-        </div>
+        {category && CATEGORY_FIELD_FLAGS[category].rooms ? (
+          <div className="space-y-2">
+            <Label>عدد الغرف</Label>
+            <input
+              type="hidden"
+              name="rooms"
+              value={roomCount === "" ? "" : toArabicNumber(Number(roomCount))}
+            />
+            <Select
+              value={roomCount || null}
+              onValueChange={(value) => setRoomCount(value ?? "")}
+            >
+              <SelectTrigger className="h-11 w-full rounded-xl bg-white">
+                <SelectValue placeholder="اختر العدد" />
+              </SelectTrigger>
+              <SelectContent>
+                {roomCountOptionsForCategory(category).map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {toArabicNumber(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
         <div className="space-y-2">
           <Label htmlFor="minBudget">أدنى ميزانية</Label>
           <Input

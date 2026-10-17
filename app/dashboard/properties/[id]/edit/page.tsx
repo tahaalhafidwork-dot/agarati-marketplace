@@ -10,6 +10,10 @@ import { listApprovedProjectsForComplexes } from "@/lib/complex-options"
 import { isDatabaseConfigured, prisma } from "@/lib/db"
 import { prismaToCategory, prismaToDeal } from "@/lib/listings"
 import type { ContactMethod } from "@/lib/actions/listings"
+import {
+  inferLegacyFloorValues,
+  parseLegacyRoomCount,
+} from "@/lib/listing-attributes"
 
 export const metadata: Metadata = {
   title: "تعديل إعلان",
@@ -40,15 +44,28 @@ export default async function EditPropertyPage({
   if (!listing) notFound()
   if (listing.ownerId !== user.id) notFound()
 
+  const category = prismaToCategory[listing.category]
+  const legacyFloors = inferLegacyFloorValues(category, listing.floor)
+
   const initialValues: ListingWizardInitial = {
     listingId: listing.id,
-    category: prismaToCategory[listing.category],
+    category,
     deal: prismaToDeal[listing.deal],
     title: listing.title,
     price: String(listing.priceIqd),
-    rooms: listing.rooms ?? "",
+    roomCount: String(
+      listing.roomCount ?? parseLegacyRoomCount(listing.rooms) ?? ""
+    ),
     areaM2: listing.areaM2 != null ? String(listing.areaM2) : "",
-    floor: listing.floor ?? "",
+    floorNumber: String(
+      listing.floorNumber ?? legacyFloors.floorNumber ?? ""
+    ),
+    propertyFloors: String(
+      listing.propertyFloors ?? legacyFloors.propertyFloors ?? ""
+    ),
+    buildingFloors: String(
+      listing.buildingFloors ?? legacyFloors.buildingFloors ?? ""
+    ),
     heating: listing.heating ?? "",
     furnished: listing.furnished ?? "",
     services: listing.services ?? [],

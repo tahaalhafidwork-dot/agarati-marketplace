@@ -139,10 +139,18 @@ model Listing {
   /// Price in IQD (integer fils-free whole dinars)
   priceIqd    Int
   rooms       String?
+  /// Normalized room count used by forms and exact filtering.
+  roomCount   Int?
   areaM2      Int?
   floor       String?
+  /// Unit position inside a building: 0 = ground, negative = basement.
+  floorNumber    Int?
+  /// Number of levels occupied by the advertised property (2 = duplex).
+  propertyFloors Int?
+  /// Total floors in the host building for apartments/offices.
+  buildingFloors Int?
   heating     String?
-  furnished   String?
+  furnished  String?
   meta        String?
 
   citySlug         String
@@ -183,6 +191,9 @@ model Listing {
   @@index([status, createdAt])
   @@index([citySlug, districtSlug])
   @@index([category, deal, status])
+  @@index([status, category, roomCount])
+  @@index([status, category, floorNumber])
+  @@index([status, category, propertyFloors])
   @@index([ownerId])
 }
 

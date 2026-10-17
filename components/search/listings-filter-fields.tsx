@@ -9,11 +9,26 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  roomCountOptionsForCategory,
+  toArabicNumber,
+} from "@/lib/listing-attributes"
+import {
   CATEGORY_FIELD_FLAGS,
   dealOptionsForCategory,
   isDealAllowedForCategory,
 } from "@/lib/listing-form-config"
-import { filterRoomOptions, parseIQD } from "@/lib/listing-query"
+import {
+  filterFloorOptions,
+  filterPropertyFloorOptions,
+  parseIQD,
+} from "@/lib/listing-query"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
 
@@ -23,11 +38,44 @@ export const filterDealOptions: DealType[] = ["sale", "rent", "daily"]
 export type ListingsFilterDraft = {
   deal?: DealType
   location: LocationFilterValue
-  rooms: string[]
+  rooms: string
+  floor: string
+  propertyFloors: string
   minPrice: string
   maxPrice: string
   minArea: string
   maxArea: string
+}
+
+function NumericFilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: readonly number[]
+  onChange: (value: string) => void
+}) {
+  return (
+    <Select
+      value={value || "any"}
+      onValueChange={(next) => onChange(next === "any" ? "" : (next ?? ""))}
+    >
+      <SelectTrigger aria-label={label} className="h-11 w-full rounded-xl bg-card">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="any">الكل</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option} value={String(option)}>
+            {toArabicNumber(option)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 }
 
 type Props = {
@@ -70,13 +118,6 @@ export function ListingsFilterFields({
     onChange({ ...value, ...partial })
   const categoryDealOptions = dealOptionsForCategory(category ?? "")
 
-  const toggleRoom = (room: string) => {
-    const rooms = value.rooms.includes(room)
-      ? value.rooms.filter((r) => r !== room)
-      : [...value.rooms, room]
-    patch({ rooms })
-  }
-
   return (
     <div className={cn("space-y-3", className)}>
       <FilterSection title="نوع الصفقة">
@@ -114,31 +155,47 @@ export function ListingsFilterFields({
         />
       </FilterSection>
 
-      {(!category || CATEGORY_FIELD_FLAGS[category].rooms) && (
+      {category && CATEGORY_FIELD_FLAGS[category].rooms ? (
         <FilterSection title="عدد الغرف">
-          <div className="flex flex-wrap gap-1.5">
-            {filterRoomOptions.map((room) => {
-              const selected = value.rooms.includes(room)
-              return (
-                <button
-                  key={room}
-                  type="button"
-                  onClick={() => toggleRoom(room)}
-                  aria-pressed={selected}
-                  className={cn(
-                    "min-w-14 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
-                    selected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:border-primary/35"
-                  )}
-                >
-                  {room}
-                </button>
-              )
-            })}
-          </div>
+          <NumericFilterSelect
+            label="عدد الغرف"
+            value={value.rooms}
+            options={roomCountOptionsForCategory(category)}
+            onChange={(rooms) => patch({ rooms })}
+          />
+          <p className="text-[0.65rem] text-muted-foreground">
+            ٠ يعني وحدة استوديو.
+          </p>
         </FilterSection>
-      )}
+      ) : null}
+
+      {category && CATEGORY_FIELD_FLAGS[category].floorNumber ? (
+        <FilterSection title="طابق الوحدة">
+          <NumericFilterSelect
+            label="طابق الوحدة"
+            value={value.floor}
+            options={filterFloorOptions}
+            onChange={(floor) => patch({ floor })}
+          />
+          <p className="text-[0.65rem] text-muted-foreground">
+            ٠ أرضي، والأرقام السالبة للأقبية.
+          </p>
+        </FilterSection>
+      ) : null}
+
+      {category && CATEGORY_FIELD_FLAGS[category].propertyFloors ? (
+        <FilterSection title="عدد طوابق العقار">
+          <NumericFilterSelect
+            label="عدد طوابق العقار"
+            value={value.propertyFloors}
+            options={filterPropertyFloorOptions}
+            onChange={(propertyFloors) => patch({ propertyFloors })}
+          />
+          <p className="text-[0.65rem] text-muted-foreground">
+            ٢ دوبلكس، و٣ تربلكس.
+          </p>
+        </FilterSection>
+      ) : null}
 
       <FilterSection title="السعر (د.ع)">
         <div className="grid grid-cols-2 gap-2">
@@ -247,7 +304,9 @@ export function draftFromQuery(query: {
   district?: string
   neighborhood?: string
   complex?: string
-  rooms?: string[]
+  rooms?: number
+  floor?: number
+  propertyFloors?: number
   minPrice?: number
   maxPrice?: number
   minArea?: number
@@ -267,9 +326,17 @@ export function draftFromQuery(query: {
       complex: query.complex,
     },
     rooms:
-      query.category && !CATEGORY_FIELD_FLAGS[query.category].rooms
-        ? []
-        : query.rooms ?? [],
+      query.category && CATEGORY_FIELD_FLAGS[query.category].rooms
+        ? query.rooms?.toString() ?? ""
+        : "",
+    floor:
+      query.category && CATEGORY_FIELD_FLAGS[query.category].floorNumber
+        ? query.floor?.toString() ?? ""
+        : "",
+    propertyFloors:
+      query.category && CATEGORY_FIELD_FLAGS[query.category].propertyFloors
+        ? query.propertyFloors?.toString() ?? ""
+        : "",
     minPrice: query.minPrice?.toString() ?? "",
     maxPrice: query.maxPrice?.toString() ?? "",
     minArea: query.minArea?.toString() ?? "",
@@ -281,7 +348,9 @@ export function emptyFilterDraft(): ListingsFilterDraft {
   return {
     deal: undefined,
     location: {},
-    rooms: [],
+    rooms: "",
+    floor: "",
+    propertyFloors: "",
     minPrice: "",
     maxPrice: "",
     minArea: "",
@@ -301,7 +370,11 @@ export function draftToQueryPatch(draft: ListingsFilterDraft) {
     district: draft.location.district,
     neighborhood: draft.location.neighborhood,
     complex: draft.location.complex,
-    rooms: draft.rooms.length ? draft.rooms : undefined,
+    rooms: draft.rooms ? Number(draft.rooms) : undefined,
+    floor: draft.floor ? Number(draft.floor) : undefined,
+    propertyFloors: draft.propertyFloors
+      ? Number(draft.propertyFloors)
+      : undefined,
     minPrice: parseBound(draft.minPrice),
     maxPrice: parseBound(draft.maxPrice),
     minArea: parseBound(draft.minArea),

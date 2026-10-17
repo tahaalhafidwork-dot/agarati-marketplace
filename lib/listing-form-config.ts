@@ -20,7 +20,12 @@ export const LISTING_WIZARD_STEPS: {
 export type CategoryFieldFlags = {
   rooms: boolean
   areaM2: boolean
-  floor: boolean
+  /** Unit position inside a larger building. */
+  floorNumber: boolean
+  /** Levels occupied by the advertised property (2 = duplex). */
+  propertyFloors: boolean
+  /** Total floors in the host building. */
+  buildingFloors: boolean
   heating: boolean
   furnished: boolean
   services: boolean
@@ -34,43 +39,55 @@ export const CATEGORY_FIELD_FLAGS: Record<PropertyCategory, CategoryFieldFlags> 
     apartment: {
       rooms: true,
       areaM2: true,
-      floor: true,
+      floorNumber: true,
+      propertyFloors: true,
+      buildingFloors: true,
       heating: true,
       furnished: true,
       services: true,
-      detailsHint: "الغرف والطابق والمساحة مهمة للشقق.",
+      detailsHint:
+        "حدّد عدد الغرف، طابق الوحدة، وعدد طوابقها بدقة (٢ يعني دوبلكس).",
     },
     house: {
       rooms: true,
       areaM2: true,
-      floor: true,
+      floorNumber: false,
+      propertyFloors: true,
+      buildingFloors: false,
       heating: true,
       furnished: true,
       services: true,
-      detailsHint: "أدخل مواصفات المنزل بوضوح للمشتري أو المستأجر.",
+      detailsHint: "حدّد عدد الغرف وعدد طوابق المنزل نفسه.",
     },
     villa: {
       rooms: true,
       areaM2: true,
-      floor: true,
+      floorNumber: false,
+      propertyFloors: true,
+      buildingFloors: false,
       heating: true,
       furnished: true,
       services: true,
-      detailsHint: "الفلل غالباً تبرز بالمساحة والخدمات.",
+      detailsHint: "حدّد عدد الغرف وطوابق الفيلا إضافة إلى المساحة والخدمات.",
     },
     office: {
       rooms: true,
       areaM2: true,
-      floor: true,
+      floorNumber: true,
+      propertyFloors: true,
+      buildingFloors: true,
       heating: true,
       furnished: true,
       services: true,
-      detailsHint: "يمكن ذكر عدد الغرف/المكاتب والطابق.",
+      detailsHint:
+        "حدّد عدد الغرف/المكاتب، طابق الوحدة، والطوابق التي يشغلها المكتب.",
     },
     land: {
       rooms: false,
       areaM2: true,
-      floor: false,
+      floorNumber: false,
+      propertyFloors: false,
+      buildingFloors: false,
       heating: false,
       furnished: false,
       services: false,
@@ -79,16 +96,20 @@ export const CATEGORY_FIELD_FLAGS: Record<PropertyCategory, CategoryFieldFlags> 
     building: {
       rooms: false,
       areaM2: true,
-      floor: true,
+      floorNumber: false,
+      propertyFloors: true,
+      buildingFloors: false,
       heating: false,
       furnished: false,
       services: true,
-      detailsHint: "للعمارات: المساحة وعدد الطوابق أو الوصف في الطابق.",
+      detailsHint: "للعمارات: المساحة وعدد طوابق العقار بدقة.",
     },
     farm: {
       rooms: false,
       areaM2: true,
-      floor: false,
+      floorNumber: false,
+      propertyFloors: false,
+      buildingFloors: false,
       heating: false,
       furnished: false,
       services: true,

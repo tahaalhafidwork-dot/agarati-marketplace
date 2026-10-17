@@ -32,8 +32,12 @@ export type MobileListingCard = {
   price: string
   meta: string
   rooms: string
+  roomCount?: number
   areaM2: string
   floor?: string
+  floorNumber?: number
+  propertyFloors?: number
+  buildingFloors?: number
   deal: MobileDealType
   category: MobilePropertyCategory
   type: string
