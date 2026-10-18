@@ -29,7 +29,7 @@ import {
   parseIntegerOption,
   parseLegacyRoomCount,
   roomCountOptionsForCategory,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 
 export type SortKey =
@@ -74,6 +74,9 @@ const DATE_RANK: Record<string, number> = {
   اليوم: 0,
   أمس: 1,
   "منذ يومين": 2,
+  "منذ 3 أيام": 3,
+  "منذ 4 أيام": 4,
+  "منذ 5 أيام": 5,
   "منذ ٣ أيام": 3,
   "منذ ٤ أيام": 4,
   "منذ ٥ أيام": 5,
@@ -81,7 +84,7 @@ const DATE_RANK: Record<string, number> = {
 }
 
 export function fromArabicDigits(value: string): string {
-  return value.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+  return toEnglishDigits(value)
 }
 
 export function parseIQD(value: string): number {
@@ -357,21 +360,21 @@ export function activeFilterChips(query: ListingQuery): {
   if (query.rooms != null) {
     chips.push({
       key: "rooms",
-      label: `الغرف ${toArabicNumber(query.rooms)}`,
+      label: `الغرف ${toEnglishNumber(query.rooms)}`,
       clearHref: without({ rooms: undefined }),
     })
   }
   if (query.floor != null) {
     chips.push({
       key: "floor",
-      label: `الطابق ${toArabicNumber(query.floor)}`,
+      label: `الطابق ${toEnglishNumber(query.floor)}`,
       clearHref: without({ floor: undefined }),
     })
   }
   if (query.propertyFloors != null) {
     chips.push({
       key: "propertyFloors",
-      label: `طوابق العقار ${toArabicNumber(query.propertyFloors)}`,
+      label: `طوابق العقار ${toEnglishNumber(query.propertyFloors)}`,
       clearHref: without({ propertyFloors: undefined }),
     })
   }

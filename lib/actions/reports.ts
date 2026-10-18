@@ -42,10 +42,10 @@ export async function submitReportAction(
     return { error: "اختر نوع البلاغ." }
   }
   if (description.length < 20) {
-    return { error: "اكتب وصفاً أوضح (٢٠ حرفاً على الأقل) حتى نتمكّن من المراجعة." }
+    return { error: "اكتب وصفاً أوضح (20 حرفاً على الأقل) حتى نتمكّن من المراجعة." }
   }
   if (description.length > 4000) {
-    return { error: "الوصف طويل جداً — اختصره إلى ٤٠٠٠ حرف كحد أقصى." }
+    return { error: "الوصف طويل جداً — اختصره إلى 4000 حرف كحد أقصى." }
   }
   if (!confirmed) {
     return { error: "يجب تأكيد أن البلاغ صحيح وعلى مسؤوليتك." }

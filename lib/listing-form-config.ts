@@ -46,7 +46,7 @@ export const CATEGORY_FIELD_FLAGS: Record<PropertyCategory, CategoryFieldFlags> 
       furnished: true,
       services: true,
       detailsHint:
-        "حدّد عدد الغرف، طابق الوحدة، وعدد طوابقها بدقة (٢ يعني دوبلكس).",
+        "حدّد عدد الغرف، طابق الوحدة، وعدد طوابقها بدقة (2 يعني دوبلكس).",
     },
     house: {
       rooms: true,

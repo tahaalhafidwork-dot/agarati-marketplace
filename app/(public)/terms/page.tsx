@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "شروط وأحكام استخدام منصة أغاراتي — وسيط إعلانات عقارية وحدود المسؤولية.",
 }
 
-const EFFECTIVE = "٢٧ سبتمبر ٢٠٢٦"
+const EFFECTIVE = "27 سبتمبر 2026"
 
 export default function TermsPage() {
   return (
     <LegalArticle title="شروط الاستخدام" effectiveDate={EFFECTIVE}>
-      <LegalSection title="١. القبول المسبق والملزم">
+      <LegalSection title="1. القبول المسبق والملزم">
         <p>
           بالوصول إلى موقع أو تطبيق أغاراتي (AGARATİ) أو تصفحه أو التسجيل فيه أو
           نشر محتوى أو إرسال رسائل أو تقديم بلاغ أو استخدام أي خدمة متاحة عبره،
@@ -27,7 +27,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٢. طبيعة المنصة وحدود الدور">
+      <LegalSection title="2. طبيعة المنصة وحدود الدور">
         <p>
           أغاراتي منصة إلكترونية لوساطة عرض الإعلانات العقارية والتواصل الأولي
           بين الأطراف. المنصة{" "}
@@ -44,7 +44,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٣. حماية المشغّل والكيان">
+      <LegalSection title="3. حماية المشغّل والكيان">
         <p>
           تُدار المنصة بواسطة مالكها/مشغّليها بوصفهم كياناً تشغيلياً و/أو شخصية
           اعتبارية و/أو أفراداً مرتبطين بتشغيل الخدمة. في حدود ما يسمح به القانون
@@ -72,7 +72,7 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="٤. الاستخدام الصحيح">
+      <LegalSection title="4. الاستخدام الصحيح">
         <ul className="list-disc space-y-1 ps-5">
           <li>
             تقديم معلومات صحيحة وغير مضللة عند التسجيل والنشر والمراسلة.
@@ -95,7 +95,7 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="٥. إخلاء المسؤولية عن سوء الاستخدام والأنشطة غير القانونية">
+      <LegalSection title="5. إخلاء المسؤولية عن سوء الاستخدام والأنشطة غير القانونية">
         <p>
           يُحظر استخدام المنصة لأي غرض غير قانوني أو احتيالي أو لغسل أموال أو
           تمويل أنشطة محظورة أو التحايل على أنظمة أو نشر إعلانات وهمية أو جمع
@@ -109,7 +109,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٦. الحساب والمحتوى والمراجعة">
+      <LegalSection title="6. الحساب والمحتوى والمراجعة">
         <p>
           أنت مسؤول عن سرية بيانات الدخول وعن النشاط الصادر من حسابك. يحق
           للإدارة رفض أو تعديل أو إخفاء أو حذف أي محتوى، وتعليق أو إنهاء الحسابات
@@ -118,7 +118,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٧. التواصل والمراسلة">
+      <LegalSection title="7. التواصل والمراسلة">
         <p>
           أزرار الاتصال أو واتساب قد تنقلك إلى تطبيقات خارجية؛ أغاراتي لا تتحكم
           بتلك التطبيقات ولا بالمكالمات. الرسائل داخل المنصة — إن وُجدت — تسهّل
@@ -126,14 +126,14 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٨. التعديلات">
+      <LegalSection title="8. التعديلات">
         <p>
           يجوز تحديث هذه الشروط في أي وقت بنشر النسخة الجديدة على هذه الصفحة مع
           تحديث تاريخ السريان. استمرار الاستخدام بعد النشر يُعد قبولاً للتعديلات.
         </p>
       </LegalSection>
 
-      <LegalSection title="٩. القانون والاختصاص">
+      <LegalSection title="9. القانون والاختصاص">
         <p>
           تُفسر هذه الشروط وفقاً للقوانين المعمول بها في جمهورية العراق، ما لم
           يقتضِ نص آمر خلاف ذلك. يُسعى أولاً إلى التسوية الودية؛ وعند اللزوم يكون
@@ -142,7 +142,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="١٠. التواصل بشأن الشروط">
+      <LegalSection title="10. التواصل بشأن الشروط">
         <p>
           للاستفسار أو البلاغ المرتبط بهذه الشروط راجع{" "}
           <Link href="/support" className="text-primary hover:underline">

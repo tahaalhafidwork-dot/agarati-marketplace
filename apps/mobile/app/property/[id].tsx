@@ -32,15 +32,19 @@ import { colors, radii, spacing, type } from "../../src/theme/tokens"
 
 const width = Dimensions.get("window").width
 
-function toArabicNumber(value: number): string {
-  return String(value).replace(/\d/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]!)
+function toEnglishNumber(value: number): string {
+  return String(value)
 }
 
 function formatFloorCount(value: number): string {
   if (value === 1) return "طابق واحد"
   if (value === 2) return "طابقان (دوبلكس)"
-  if (value === 3) return "٣ طوابق (تربلكس)"
-  return `${toArabicNumber(value)} طوابق`
+  if (value === 3) return "3 طوابق (تربلكس)"
+  return `${toEnglishNumber(value)} طوابق`
+}
+
+function formatBuildingFloorCount(value: number): string {
+  return value === 1 ? "طابق واحد" : `${toEnglishNumber(value)} طوابق`
 }
 
 /** Property detail — visual parity with web mobile detail. */
@@ -197,7 +201,7 @@ export default function PropertyDetailScreen() {
       ? [
           {
             label: "إجمالي طوابق المبنى",
-            value: formatFloorCount(item.buildingFloors),
+            value: formatBuildingFloorCount(item.buildingFloors),
           },
         ]
       : []),

@@ -1,12 +1,13 @@
 import type { PropertyCategory } from "@/lib/sample-listings"
+import { toEnglishDigits } from "@/lib/numerals"
 
 export const ROOM_COUNT_OPTIONS = numberRange(0, 20)
 export const FLOOR_NUMBER_OPTIONS = numberRange(-3, 60)
 export const PROPERTY_FLOOR_OPTIONS = numberRange(1, 20)
 export const BUILDING_FLOOR_OPTIONS = numberRange(1, 60)
+export const FURNISHED_OPTIONS = ["مؤثث", "غير مؤثث"] as const
 
-const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
-const EASTERN_ARABIC_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
+export type FurnishedOption = (typeof FURNISHED_OPTIONS)[number]
 
 function numberRange(from: number, to: number): number[] {
   return Array.from({ length: to - from + 1 }, (_, index) => from + index)
@@ -20,16 +21,12 @@ export function roomCountOptionsForCategory(
     : ROOM_COUNT_OPTIONS.slice(1)
 }
 
-export function toArabicNumber(value: number): string {
-  return String(value).replace(/\d/g, (digit) => ARABIC_DIGITS[Number(digit)]!)
+export function toEnglishNumber(value: number): string {
+  return String(value)
 }
 
 export function fromArabicDigits(value: string): string {
-  return value
-    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) =>
-      String(EASTERN_ARABIC_DIGITS.indexOf(digit))
-    )
+  return toEnglishDigits(value)
 }
 
 export function parseIntegerOption(
@@ -42,8 +39,30 @@ export function parseIntegerOption(
   return options.includes(parsed) ? parsed : null
 }
 
+export function parseFurnishedOption(
+  value: FormDataEntryValue | string | null | undefined
+): FurnishedOption | null {
+  const normalized = String(value ?? "").trim()
+  return FURNISHED_OPTIONS.find((option) => option === normalized) ?? null
+}
+
+export function normalizeLegacyFurnished(
+  value?: string | null
+): FurnishedOption | "" {
+  const normalized = (value ?? "").trim()
+  if (!normalized || normalized === "—") return ""
+  if (/غير\s*(?:مؤثث|مفروش)|فارغ/.test(normalized)) return "غير مؤثث"
+  if (/مؤثث|مفروش/.test(normalized)) return "مؤثث"
+  return ""
+}
+
 export function parseLegacyRoomCount(value?: string | null): number | null {
-  const match = fromArabicDigits(value ?? "").match(/\d+/)
+  const normalized = fromArabicDigits(value ?? "").trim()
+  if (/استوديو|مفتوح/.test(normalized)) return 0
+  if (/(?:مكتب|غرفة)\s+واحد(?:ة)?/.test(normalized)) return 1
+  if (/مكتب(?:ان|ين)|غرفت(?:ان|ين)/.test(normalized)) return 2
+
+  const match = normalized.match(/\d+/)
   if (!match) return null
   const parsed = Number(match[0])
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
@@ -99,24 +118,24 @@ export function inferLegacyFloorValues(
 }
 
 export function formatFloorNumber(value: number): string {
-  if (value === 0) return "٠ (أرضي)"
-  if (value < 0) return `${toArabicNumber(value)} (قبو)`
-  return toArabicNumber(value)
+  if (value === 0) return "0 (أرضي)"
+  if (value < 0) return `${toEnglishNumber(value)} (قبو)`
+  return toEnglishNumber(value)
 }
 
 export function formatPropertyFloors(value: number): string {
   if (value === 1) return "طابق واحد"
   if (value === 2) return "طابقان (دوبلكس)"
-  if (value === 3) return "٣ طوابق (تربلكس)"
-  return `${toArabicNumber(value)} طوابق`
+  if (value === 3) return "3 طوابق (تربلكس)"
+  return `${toEnglishNumber(value)} طوابق`
 }
 
 export function formatBuildingFloors(value: number): string {
-  return value === 1 ? "طابق واحد" : `${toArabicNumber(value)} طوابق`
+  return value === 1 ? "طابق واحد" : `${toEnglishNumber(value)} طوابق`
 }
 
 export function legacyRoomsValue(roomCount: number | null): string | null {
-  return roomCount == null ? null : toArabicNumber(roomCount)
+  return roomCount == null ? null : toEnglishNumber(roomCount)
 }
 
 export function legacyFloorValue(input: {
@@ -127,10 +146,10 @@ export function legacyFloorValue(input: {
 }): string | null {
   if (input.category === "apartment" || input.category === "office") {
     if (input.floorNumber == null) return null
-    const floor = toArabicNumber(input.floorNumber)
+    const floor = toEnglishNumber(input.floorNumber)
     return input.buildingFloors == null
       ? floor
-      : `${floor} / ${toArabicNumber(input.buildingFloors)}`
+      : `${floor} / ${toEnglishNumber(input.buildingFloors)}`
   }
   return input.propertyFloors == null
     ? null

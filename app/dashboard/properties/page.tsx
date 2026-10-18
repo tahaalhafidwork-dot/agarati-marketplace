@@ -128,8 +128,8 @@ export default async function MyPropertiesPage({
               <span className="ms-1.5 text-xs text-muted-foreground">
                 (
                 {quotaLimit >= 12
-                  ? "وكالة — حتى ١٢ إعلاناً"
-                  : "فردي — حتى ٣ إعلانات"}
+                  ? "وكالة — حتى 12 إعلاناً"
+                  : "فردي — حتى 3 إعلانات"}
                 )
               </span>
             </p>
@@ -262,11 +262,11 @@ export default async function MyPropertiesPage({
                       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <Eye className="size-3.5" strokeWidth={1.75} />
-                          {item.viewCount.toLocaleString("ar-IQ")} زيارة
+                          {item.viewCount.toLocaleString("en-US")} زيارة
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Heart className="size-3.5" strokeWidth={1.75} />
-                          {item._count.favorites.toLocaleString("ar-IQ")} مفضلة
+                          {item._count.favorites.toLocaleString("en-US")} مفضلة
                         </span>
                       </div>
                     ) : null}

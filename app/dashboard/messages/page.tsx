@@ -232,7 +232,7 @@ export default async function MessagesInboxPage() {
                     {thread.preview}
                   </p>
                   <p className="mt-1 text-[0.65rem] text-muted-foreground">
-                    {thread.at.toLocaleString("ar-IQ")}
+                    {thread.at.toLocaleString("ar-IQ-u-nu-latn")}
                   </p>
                 </div>
               </Link>

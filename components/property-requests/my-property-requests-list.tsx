@@ -64,7 +64,7 @@ export function MyPropertyRequestsList({ items }: Props) {
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {item.areaLabel} · {item.budgetLabel} ·{" "}
-              {item.createdAt.toLocaleDateString("ar-IQ")}
+              {item.createdAt.toLocaleDateString("ar-IQ-u-nu-latn")}
             </p>
           </Link>
 

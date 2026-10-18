@@ -115,7 +115,7 @@ export function SignupForm({
                       className="cursor-pointer file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
                     />
                     <FieldDescription>
-                      صورة مربّعة واضحة — حتى ٣ ميغابايت
+                      صورة مربّعة واضحة — حتى 3 ميغابايت
                     </FieldDescription>
                   </Field>
                   <Field>

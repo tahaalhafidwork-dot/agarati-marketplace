@@ -46,7 +46,7 @@ export async function signUpAction(
   const agencyBio = String(formData.get("agencyBio") ?? "").trim() || null
 
   if (!name || !email || password.length < 6) {
-    return { error: "تحقق من الاسم والبريد وكلمة المرور (٦ أحرف على الأقل)." }
+    return { error: "تحقق من الاسم والبريد وكلمة المرور (6 أحرف على الأقل)." }
   }
 
   const asAgency = accountKind === "agency"

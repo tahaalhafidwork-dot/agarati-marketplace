@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "كيف تجمع منصة أغاراتي البيانات وتعالجها وتحمي الخصوصية على الصفحات العامة.",
 }
 
-const EFFECTIVE = "٢٧ سبتمبر ٢٠٢٦"
+const EFFECTIVE = "27 سبتمبر 2026"
 
 export default function PrivacyPage() {
   return (
     <LegalArticle title="سياسة الخصوصية" effectiveDate={EFFECTIVE}>
-      <LegalSection title="١. من نحن">
+      <LegalSection title="1. من نحن">
         <p>
           توضّح هذه السياسة كيف تجمع منصة أغاراتي (AGARATİ) البيانات الشخصية
           وتستخدمها وتحميها عند التصفح والتسجيل ونشر الإعلانات والتواصل عبر
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٢. البيانات التي قد نجمعها">
+      <LegalSection title="2. البيانات التي قد نجمعها">
         <ul className="list-disc space-y-1 ps-5">
           <li>
             بيانات الحساب: الاسم، البريد الإلكتروني، رقم الهاتف أو واتساب عند
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="٣. أغراض المعالجة">
+      <LegalSection title="3. أغراض المعالجة">
         <ul className="list-disc space-y-1 ps-5">
           <li>تشغيل الحساب وعرض الإعلانات وإدارة المراجعة.</li>
           <li>تمكين التواصل بين المهتمين والمعلنين ضمن حدود الخدمة.</li>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="٤. ما يظهر للعامة">
+      <LegalSection title="4. ما يظهر للعامة">
         <p>
           على الصفحات العامة نعرض معلومات مثل المدينة والقضاء والحي و/أو المجمع
           السكني عند الحاجة.{" "}
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٥. التواصل خارج المنصة">
+      <LegalSection title="5. التواصل خارج المنصة">
         <p>
           عند استخدام الاتصال أو واتساب قد تنتقل إلى تطبيقات طرف ثالث. تلك
           التطبيقات تخضع لسياساتها الخاصة، وأغاراتي لا تتحكم بمحتوى المكالمات أو
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٦. الاحتفاظ والمشاركة">
+      <LegalSection title="6. الاحتفاظ والمشاركة">
         <p>
           نحتفظ بالبيانات طالما كان ذلك لازماً لتشغيل الحساب أو الإعلان أو
           البلاغات أو للامتثال القانوني أو فضّ النزاعات. لا نبيع بياناتك الشخصية
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٧. الأمان وحقوقك">
+      <LegalSection title="7. الأمان وحقوقك">
         <p>
           نطبّق إجراءات أمان معقولة تجارياً دون ضمان مطلق ضد الاختراق. يمكنك طلب
           تحديث بيانات حسابك عبر الإعدادات أو التواصل معنا. قد نطلب التحقق من
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="٨. التحديثات والتواصل">
+      <LegalSection title="8. التحديثات والتواصل">
         <p>
           قد نحدّث هذه السياسة مع تغيير تاريخ السريان. للاستفسارات أو البلاغات
           المتعلقة بالخصوصية استخدم{" "}

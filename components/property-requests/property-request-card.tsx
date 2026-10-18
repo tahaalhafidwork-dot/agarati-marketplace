@@ -66,7 +66,7 @@ export function PropertyRequestCardView({
           </Badge>
         </div>
         <span className="text-[0.65rem] text-muted-foreground">
-          {item.createdAt.toLocaleDateString("ar-IQ")}
+          {item.createdAt.toLocaleDateString("ar-IQ-u-nu-latn")}
         </span>
       </div>
 

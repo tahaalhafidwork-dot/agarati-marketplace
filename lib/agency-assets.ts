@@ -31,7 +31,7 @@ export async function uploadAgencyLogoFile(
     return { error: "ارفع شعار المكتب." }
   }
   if (file.size > MAX_LOGO_BYTES) {
-    return { error: "الحد الأقصى لشعار المكتب ٣ ميغابايت." }
+    return { error: "الحد الأقصى لشعار المكتب 3 ميغابايت." }
   }
   if (!file.type.startsWith("image/")) {
     return { error: "شعار المكتب يجب أن يكون صورة." }
@@ -77,7 +77,7 @@ export async function uploadProjectCoverFile(
     return { error: "اختر صورة للمشروع." }
   }
   if (file.size > MAX_LOGO_BYTES) {
-    return { error: "الحد الأقصى لصورة المشروع ٣ ميغابايت." }
+    return { error: "الحد الأقصى لصورة المشروع 3 ميغابايت." }
   }
   if (!file.type.startsWith("image/")) {
     return { error: "الملف يجب أن يكون صورة." }
@@ -106,7 +106,7 @@ export async function uploadProjectGalleryFile(
     return { error: "اختر صورة للمشاركة." }
   }
   if (file.size > MAX_LOGO_BYTES) {
-    return { error: "الحد الأقصى للصورة ٣ ميغابايت." }
+    return { error: "الحد الأقصى للصورة 3 ميغابايت." }
   }
   if (!file.type.startsWith("image/")) {
     return { error: "الملف يجب أن يكون صورة." }

@@ -22,6 +22,7 @@ import {
   type PropertyCategory,
 } from "@/lib/sample-listings"
 import { fromArabicDigits, parseIQD } from "@/lib/listing-query"
+import { formatEnglishNumber, toEnglishDigits } from "@/lib/numerals"
 
 export type PropertyRequestCard = {
   id: string
@@ -61,8 +62,7 @@ export function formatBudgetRange(
   min: number | null | undefined,
   max: number | null | undefined
 ): string {
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("ar-IQ").format(n) + " د.ع"
+  const fmt = (n: number) => formatEnglishNumber(n) + " د.ع"
   if (min != null && max != null) return `${fmt(min)} – ${fmt(max)}`
   if (min != null) return `من ${fmt(min)}`
   if (max != null) return `حتى ${fmt(max)}`
@@ -100,14 +100,14 @@ export function toPropertyRequestCard(
 
   return {
     id: row.id,
-    title: row.title,
-    description: row.description,
+    title: toEnglishDigits(row.title),
+    description: toEnglishDigits(row.description),
     category,
     deal,
     citySlug: row.citySlug,
     districtSlug: row.districtSlug,
     neighborhoodSlug: row.neighborhoodSlug,
-    rooms: row.rooms,
+    rooms: row.rooms ? toEnglishDigits(row.rooms) : null,
     minBudgetIqd: row.minBudgetIqd,
     maxBudgetIqd: row.maxBudgetIqd,
     minAreaM2: row.minAreaM2,

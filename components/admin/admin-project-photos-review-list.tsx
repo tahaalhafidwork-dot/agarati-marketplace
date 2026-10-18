@@ -71,7 +71,7 @@ export function AdminProjectPhotosReviewList({
                 مساهم: {p.contributorName}
               </p>
               <p className="text-[0.65rem] text-muted-foreground" dir="ltr">
-                {new Date(p.createdAt).toLocaleString("ar-IQ")}
+                {new Date(p.createdAt).toLocaleString("ar-IQ-u-nu-latn")}
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button

@@ -70,7 +70,7 @@ export async function updateAdminUserCredentialsAction(
   if (!email || !email.includes("@")) return { error: "بريد غير صالح." }
   if (!name) return { error: "الاسم مطلوب." }
   if (password && password.length < 6) {
-    return { error: "كلمة المرور ٦ أحرف على الأقل." }
+    return { error: "كلمة المرور 6 أحرف على الأقل." }
   }
   if (!ACCOUNT_KINDS.includes(kindRaw)) return { error: "دور غير صالح." }
 

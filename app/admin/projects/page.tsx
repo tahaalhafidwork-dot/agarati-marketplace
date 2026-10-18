@@ -98,7 +98,7 @@ export default async function AdminProjectsPage() {
           صور المعرض ({pendingPhotos.length})
         </h2>
         <p className="text-xs text-muted-foreground">
-          مشاركات المستخدمين — تظهر في `/projects/[slug]` بعد القبول (حد أقصى ٣٠
+          مشاركات المستخدمين — تظهر في `/projects/[slug]` بعد القبول (حد أقصى 30
           صورة موافَق عليها لكل مشروع).
         </p>
         <AdminProjectPhotosReviewList

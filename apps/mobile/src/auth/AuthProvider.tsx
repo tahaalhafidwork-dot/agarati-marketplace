@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const phone = input.phone?.trim() || undefined
       if (!name || !email || input.password.length < 6) {
         return {
-          error: "تحقق من الاسم والبريد وكلمة المرور (٦ أحرف على الأقل).",
+          error: "تحقق من الاسم والبريد وكلمة المرور (6 أحرف على الأقل).",
         }
       }
       const { data, error } = await client.auth.signUp({

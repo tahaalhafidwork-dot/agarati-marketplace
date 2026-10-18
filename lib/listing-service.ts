@@ -57,7 +57,7 @@ import {
   formatPropertyFloors,
   inferLegacyFloorValues,
   parseLegacyRoomCount,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 
 function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
@@ -74,7 +74,7 @@ function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
         ...item,
         id: item.slug,
         meta: [
-          roomCount == null ? item.rooms : `${toArabicNumber(roomCount)} غرف`,
+          roomCount == null ? item.rooms : `${toEnglishNumber(roomCount)} غرف`,
           item.areaM2 === "—" ? null : `${item.areaM2} م²`,
           floor,
           propertyFloors != null && propertyFloors > 1
@@ -83,7 +83,7 @@ function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
         ]
           .filter(Boolean)
           .join(" · "),
-        rooms: roomCount == null ? item.rooms : toArabicNumber(roomCount),
+        rooms: roomCount == null ? item.rooms : toEnglishNumber(roomCount),
         roomCount: roomCount ?? undefined,
         floor,
         floorNumber: floorNumber ?? undefined,

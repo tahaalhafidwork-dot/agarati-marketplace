@@ -1,9 +1,11 @@
+import { toEnglishDigits } from "@/lib/numerals"
+
 export type SearchIntent =
   | { kind: "listingNumber"; code: string }
   | { kind: "title"; text: string }
 
 function fromArabicDigits(value: string): string {
-  return value.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+  return toEnglishDigits(value)
 }
 
 /** English listing ref e.g. 00003 or 7L94I — never Arabic-Indic digits. */

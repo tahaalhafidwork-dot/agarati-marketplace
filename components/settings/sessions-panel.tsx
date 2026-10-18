@@ -36,7 +36,7 @@ export function SessionsPanel({
           {lastSignInAt ? (
             <p className="mt-1 text-xs text-muted-foreground">
               آخر دخول تقريبي:{" "}
-              {new Date(lastSignInAt).toLocaleString("ar-IQ")}
+              {new Date(lastSignInAt).toLocaleString("ar-IQ-u-nu-latn")}
             </p>
           ) : null}
         </div>

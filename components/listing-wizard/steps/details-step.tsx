@@ -13,9 +13,10 @@ import {
 import {
   BUILDING_FLOOR_OPTIONS,
   FLOOR_NUMBER_OPTIONS,
+  FURNISHED_OPTIONS,
   PROPERTY_FLOOR_OPTIONS,
   roomCountOptionsForCategory,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 import {
   DEAL_OPTIONS,
@@ -74,7 +75,7 @@ function NumberSelect({
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option} value={String(option)}>
-            {toArabicNumber(option)}
+            {toEnglishNumber(option)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -175,7 +176,9 @@ export function DetailsStep({
               placeholder="اختر العدد"
             />
             <p className="text-[0.65rem] text-muted-foreground">
-              اختر ٠ للاستوديو؛ لا تُقبل كتابة حرة لضمان دقة البحث.
+              {category === "office"
+                ? "اختر 0 للمساحة المفتوحة؛ لا تُقبل كتابة حرة لضمان دقة البحث."
+                : "اختر 0 للاستوديو؛ لا تُقبل كتابة حرة لضمان دقة البحث."}
             </p>
           </div>
         ) : null}
@@ -190,7 +193,7 @@ export function DetailsStep({
               placeholder="اختر الطابق"
             />
             <p className="text-[0.65rem] text-muted-foreground">
-              ٠ = أرضي، والأرقام السالبة = قبو.
+              0 = أرضي، والأرقام السالبة = قبو.
             </p>
           </div>
         ) : null}
@@ -205,7 +208,7 @@ export function DetailsStep({
               placeholder="اختر العدد"
             />
             <p className="text-[0.65rem] text-muted-foreground">
-              ٢ = دوبلكس، ٣ = تربلكس؛ المقصود الطوابق التي يشغلها العقار نفسه.
+              2 = دوبلكس، 3 = تربلكس؛ المقصود الطوابق التي يشغلها العقار نفسه.
             </p>
           </div>
         ) : null}
@@ -237,13 +240,22 @@ export function DetailsStep({
         ) : null}
         {flags.furnished ? (
           <div className="space-y-2">
-            <Label htmlFor="furnUi">الأثاث</Label>
-            <Input
-              id="furnUi"
+            <Label htmlFor="furnUi">الأثاث *</Label>
+            <Select
               value={furnished}
-              onChange={(e) => onFurnishedChange(e.target.value)}
-              placeholder="فارغ / مفروش"
-            />
+              onValueChange={(value) => onFurnishedChange(value ?? "")}
+            >
+              <SelectTrigger id="furnUi" className="h-10 w-full bg-white">
+                <SelectValue placeholder="اختر حالة الأثاث" />
+              </SelectTrigger>
+              <SelectContent>
+                {FURNISHED_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ) : null}
       </div>

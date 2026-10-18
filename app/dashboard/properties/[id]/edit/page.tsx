@@ -12,6 +12,7 @@ import { prismaToCategory, prismaToDeal } from "@/lib/listings"
 import type { ContactMethod } from "@/lib/actions/listings"
 import {
   inferLegacyFloorValues,
+  normalizeLegacyFurnished,
   parseLegacyRoomCount,
 } from "@/lib/listing-attributes"
 
@@ -67,7 +68,7 @@ export default async function EditPropertyPage({
       listing.buildingFloors ?? legacyFloors.buildingFloors ?? ""
     ),
     heating: listing.heating ?? "",
-    furnished: listing.furnished ?? "",
+    furnished: normalizeLegacyFurnished(listing.furnished),
     services: listing.services ?? [],
     city: listing.citySlug,
     district: listing.districtSlug,

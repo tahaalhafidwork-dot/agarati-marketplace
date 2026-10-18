@@ -76,7 +76,7 @@ export function toGalleryPhoto(row: {
     id: row.id,
     url: listingImagePublicUrl(row.storagePath),
     contributorName: row.contributorName,
-    createdAtLabel: new Intl.DateTimeFormat("ar-IQ", {
+    createdAtLabel: new Intl.DateTimeFormat("ar-IQ-u-nu-latn", {
       year: "numeric",
       month: "short",
       day: "numeric",

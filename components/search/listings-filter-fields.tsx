@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select"
 import {
   roomCountOptionsForCategory,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 import {
   CATEGORY_FIELD_FLAGS,
@@ -70,7 +70,7 @@ function NumericFilterSelect({
         <SelectItem value="any">الكل</SelectItem>
         {options.map((option) => (
           <SelectItem key={option} value={String(option)}>
-            {toArabicNumber(option)}
+            {toEnglishNumber(option)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -164,7 +164,9 @@ export function ListingsFilterFields({
             onChange={(rooms) => patch({ rooms })}
           />
           <p className="text-[0.65rem] text-muted-foreground">
-            ٠ يعني وحدة استوديو.
+            {category === "office"
+              ? "0 يعني مساحة مكتبية مفتوحة."
+              : "0 يعني وحدة استوديو."}
           </p>
         </FilterSection>
       ) : null}
@@ -178,7 +180,7 @@ export function ListingsFilterFields({
             onChange={(floor) => patch({ floor })}
           />
           <p className="text-[0.65rem] text-muted-foreground">
-            ٠ أرضي، والأرقام السالبة للأقبية.
+            0 أرضي، والأرقام السالبة للأقبية.
           </p>
         </FilterSection>
       ) : null}
@@ -192,7 +194,7 @@ export function ListingsFilterFields({
             onChange={(propertyFloors) => patch({ propertyFloors })}
           />
           <p className="text-[0.65rem] text-muted-foreground">
-            ٢ دوبلكس، و٣ تربلكس.
+            2 دوبلكس، و3 تربلكس.
           </p>
         </FilterSection>
       ) : null}
@@ -257,7 +259,7 @@ export function ListingsFilterFields({
             <Input
               id="filter-min-area"
               inputMode="numeric"
-              placeholder="٨٠"
+              placeholder="80"
               value={value.minArea}
               onChange={(e) => patch({ minArea: e.target.value })}
               className="h-11 rounded-xl"
@@ -273,7 +275,7 @@ export function ListingsFilterFields({
             <Input
               id="filter-max-area"
               inputMode="numeric"
-              placeholder="٣٠٠"
+              placeholder="300"
               value={value.maxArea}
               onChange={(e) => patch({ maxArea: e.target.value })}
               className="h-11 rounded-xl"

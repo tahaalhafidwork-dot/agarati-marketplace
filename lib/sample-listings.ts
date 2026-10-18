@@ -1,5 +1,8 @@
 import { formatShortArea, type LocationRef } from "@/lib/locations"
 import { demoServicesForSlug } from "@/lib/listing-services"
+import { toEnglishDigits } from "@/lib/numerals"
+
+export { toEnglishDigits } from "@/lib/numerals"
 
 export type PropertyCategory =
   | "apartment"
@@ -191,10 +194,6 @@ export const CATEGORIES_WITH_DAILY: readonly PropertyCategory[] = [
 
 export function categoryAllowsDaily(category: PropertyCategory): boolean {
   return (CATEGORIES_WITH_DAILY as readonly string[]).includes(category)
-}
-
-export function toEnglishDigits(value: number | string): string {
-  return String(value).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
 }
 
 const _rawListings = [
@@ -1675,11 +1674,21 @@ function finalizeListings(
     delete rest.area
     return {
       ...rest,
+      title: toEnglishDigits(rest.title),
+      price: toEnglishDigits(rest.price).replace(/٫/g, ","),
+      meta: toEnglishDigits(rest.meta),
+      rooms: toEnglishDigits(rest.rooms),
+      areaM2: toEnglishDigits(rest.areaM2),
+      floor: rest.floor ? toEnglishDigits(rest.floor) : undefined,
+      date: toEnglishDigits(rest.date),
+      description: toEnglishDigits(rest.description),
       type: categoryLabels[rest.category],
-      area: formatShortArea(rest.location),
-      services: rest.services?.length
-        ? rest.services
-        : demoServicesForSlug(rest.slug),
+      area: toEnglishDigits(formatShortArea(rest.location)),
+      services: (
+        rest.services?.length
+          ? rest.services
+          : demoServicesForSlug(rest.slug)
+      ).map(toEnglishDigits),
     }
   })
 }
@@ -1762,21 +1771,21 @@ export const categoryTree = [
 ] as const
 
 export const roomOptions = [
-  "٠",
-  "١",
-  "٢",
-  "٣",
-  "٤",
-  "٥",
-  "٦",
-  "٧",
-  "٨",
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
 ] as const
 
 export const buildingAgeOptions = [
-  "٠ (جاهز)",
-  "١–٥",
-  "٦–١٠",
-  "١١–١٥",
-  "١٦ فأكثر",
+  "0 (جاهز)",
+  "1–5",
+  "6–10",
+  "11–15",
+  "16 فأكثر",
 ] as const

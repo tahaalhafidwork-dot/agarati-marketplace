@@ -73,7 +73,7 @@ export default async function AdminReportsPage() {
                   {STATUS_LABEL[row.status] ?? row.status}
                 </Badge>
                 <span className="ms-auto text-[0.7rem] text-muted-foreground">
-                  {row.createdAt.toLocaleString("ar-IQ")}
+                  {row.createdAt.toLocaleString("ar-IQ-u-nu-latn")}
                 </span>
               </div>
               <p className="whitespace-pre-wrap leading-6 text-foreground">

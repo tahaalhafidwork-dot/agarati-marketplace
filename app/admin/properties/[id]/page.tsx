@@ -20,7 +20,7 @@ import {
   formatPropertyFloors,
   inferLegacyFloorValues,
   parseLegacyRoomCount,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 import { categoryLabels, dealLabels } from "@/lib/sample-listings"
 import { listingImagePublicUrl } from "@/lib/supabase/config"
@@ -115,7 +115,7 @@ export default async function AdminPropertyDetailPage({
     { label: "المنطقة", value: area },
     {
       label: "عدد الغرف",
-      value: roomCount == null ? "—" : toArabicNumber(roomCount),
+      value: roomCount == null ? "—" : toEnglishNumber(roomCount),
     },
     {
       label: "المساحة",

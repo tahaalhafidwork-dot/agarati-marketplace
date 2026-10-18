@@ -28,7 +28,7 @@ import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
 import {
   parseLegacyRoomCount,
   roomCountOptionsForCategory,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 import {
   categoryLabels,
@@ -251,7 +251,7 @@ export function PropertyRequestForm({ mode = "create", initialValues }: Props) {
             <input
               type="hidden"
               name="rooms"
-              value={roomCount === "" ? "" : toArabicNumber(Number(roomCount))}
+              value={roomCount === "" ? "" : toEnglishNumber(Number(roomCount))}
             />
             <Select
               value={roomCount || null}
@@ -263,7 +263,7 @@ export function PropertyRequestForm({ mode = "create", initialValues }: Props) {
               <SelectContent>
                 {roomCountOptionsForCategory(category).map((option) => (
                   <SelectItem key={option} value={String(option)}>
-                    {toArabicNumber(option)}
+                    {toEnglishNumber(option)}
                   </SelectItem>
                 ))}
               </SelectContent>

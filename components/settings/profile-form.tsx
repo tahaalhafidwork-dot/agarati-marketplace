@@ -69,7 +69,7 @@ export function ProfileForm({ user }: { user: SessionUser }) {
             {avatarPending ? "جاري الرفع…" : "تغيير الصورة"}
           </Button>
           <p className="text-[0.65rem] text-muted-foreground">
-            JPG أو PNG · حتى ٣ ميغابايت
+            JPG أو PNG · حتى 3 ميغابايت
           </p>
           {avatarState.error ? (
             <p className="text-xs text-destructive">{avatarState.error}</p>

@@ -292,7 +292,7 @@ export function MessageThreadLive(props: (ListingProps | RequestProps) & Common)
                         : "text-muted-foreground"
                     )}
                   >
-                    {new Date(msg.createdAt).toLocaleString("ar-IQ")}
+                    {new Date(msg.createdAt).toLocaleString("ar-IQ-u-nu-latn")}
                   </p>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import {
   PROPERTY_FLOOR_OPTIONS,
   legacyFloorValue,
   legacyRoomsValue,
+  parseFurnishedOption,
   parseIntegerOption,
   roomCountOptionsForCategory,
 } from "@/lib/listing-attributes"
@@ -84,7 +85,9 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
     buildingFloors,
   })
   const heating = String(formData.get("heating") ?? "").trim() || null
-  const furnished = String(formData.get("furnished") ?? "").trim() || null
+  const furnished = flags?.furnished
+    ? parseFurnishedOption(formData.get("furnished"))
+    : null
   const citySlug = String(formData.get("city") ?? "").trim()
   const districtSlug = String(formData.get("district") ?? "").trim()
   const neighborhoodSlug = String(formData.get("neighborhood") ?? "").trim()
@@ -170,6 +173,9 @@ export function validateListingFormCore(
   }
   if (flags?.buildingFloors && data.buildingFloors == null) {
     return "اختر إجمالي طوابق المبنى من القائمة."
+  }
+  if (flags?.furnished && data.furnished == null) {
+    return "اختر حالة الأثاث من القائمة."
   }
   if (
     data.floorNumber != null &&

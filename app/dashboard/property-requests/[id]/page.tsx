@@ -133,7 +133,7 @@ export default async function PropertyRequestDetailPage({ params }: Props) {
             </h1>
             <p className="mt-2 text-xs text-[#f8f1e6]/6">
               بواسطة {card.ownerName} ·{" "}
-              {card.createdAt.toLocaleDateString("ar-IQ")}
+              {card.createdAt.toLocaleDateString("ar-IQ-u-nu-latn")}
             </p>
           </div>
 

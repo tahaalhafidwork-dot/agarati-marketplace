@@ -232,6 +232,10 @@ export function NewListingForm({
         setStepError("اختر إجمالي طوابق المبنى.")
         return
       }
+      if (flags.furnished && furnished === "") {
+        setStepError("اختر حالة الأثاث.")
+        return
+      }
       if (
         floorNumber !== "" &&
         buildingFloors !== "" &&

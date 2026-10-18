@@ -24,6 +24,7 @@ import {
 import { dealOptionsForCategory } from "@/lib/deals"
 import {
   inferLegacyFloorValues,
+  normalizeLegacyFurnished,
   parseLegacyRoomCount,
 } from "@/lib/listing-attributes"
 import {
@@ -31,6 +32,8 @@ import {
   validateListingFormCore,
 } from "@/application/listings/commands/parse-listing-form"
 import { prisma } from "@/lib/db"
+import { toEnglishDigits } from "@/lib/numerals"
+import { sampleListings } from "@/lib/sample-listings"
 import {
   guestActions,
   publicNav,
@@ -204,8 +207,19 @@ export function assertNavLocks(): string[] {
 export function assertListingFilterContracts(): string[] {
   const errors: string[] = []
   const legacyRoomCount = parseLegacyRoomCount("٣+١")
+  const legacySingleOffice = parseLegacyRoomCount("مكتب واحد")
+  const legacyDoubleOffice = parseLegacyRoomCount("مكتبين")
+  const legacyOpenOffice = parseLegacyRoomCount("مفتوح")
   const legacyDuplex = inferLegacyFloorValues("apartment", "دوبلكس")
-  if (legacyRoomCount !== 3 || legacyDuplex.propertyFloors !== 2) {
+  if (
+    legacyRoomCount !== 3 ||
+    legacySingleOffice !== 1 ||
+    legacyDoubleOffice !== 2 ||
+    legacyOpenOffice !== 0 ||
+    normalizeLegacyFurnished("مفروش جزئياً") !== "مؤثث" ||
+    normalizeLegacyFurnished("فارغ") !== "غير مؤثث" ||
+    legacyDuplex.propertyFloors !== 2
+  ) {
     errors.push("legacy room and duplex values should normalize to numbers")
   }
   const unsupportedLandQuery = parseQuery({
@@ -237,6 +251,7 @@ export function assertListingFilterContracts(): string[] {
     floorNumber: "6",
     propertyFloors: "2",
     buildingFloors: "12",
+    furnished: "مؤثث",
     city: "erbil",
     district: "erbil-center",
     neighborhood: "ankawa",
@@ -248,15 +263,45 @@ export function assertListingFilterContracts(): string[] {
   const parsedListing = parseListingForm(listingForm)
   if (
     parsedListing.roomCount !== 3 ||
-    parsedListing.rooms !== "٣" ||
+    parsedListing.rooms !== "3" ||
     parsedListing.floorNumber !== 6 ||
     parsedListing.propertyFloors !== 2 ||
     parsedListing.buildingFloors !== 12 ||
-    parsedListing.floor !== "٦ / ١٢" ||
+    parsedListing.furnished !== "مؤثث" ||
+    parsedListing.floor !== "6 / 12" ||
     validateListingFormCore(parsedListing, "create") !== null
   ) {
     errors.push("listing form should persist normalized numeric room and floor data")
   }
+
+  if (
+    toEnglishDigits("١۲3") !== "123" ||
+    sampleListings.some((item) =>
+      [
+        item.title,
+        item.price,
+        item.meta,
+        item.rooms,
+        item.areaM2,
+        item.floor ?? "",
+        item.date,
+        item.description,
+        ...(item.services ?? []),
+      ].some((value) => /[٠-٩۰-۹]/.test(value))
+    )
+  ) {
+    errors.push("user-facing listing values should use English digits")
+  }
+
+  listingForm.set("furnished", "مفروش جزئياً")
+  const forgedFurnished = parseListingForm(listingForm)
+  if (
+    forgedFurnished.furnished != null ||
+    !validateListingFormCore(forgedFurnished, "create")
+  ) {
+    errors.push("listing form should reject free-text furnished values")
+  }
+  listingForm.set("furnished", "مؤثث")
 
   listingForm.set("buildingFloors", "5")
   const impossibleFloor = parseListingForm(listingForm)

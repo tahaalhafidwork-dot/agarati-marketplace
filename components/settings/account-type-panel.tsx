@@ -178,7 +178,7 @@ export function AccountTypePanel({
                 className="cursor-pointer file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
               />
               <p className="text-[0.7rem] text-muted-foreground">
-                صورة مربّعة واضحة — حتى ٣ ميغابايت
+                صورة مربّعة واضحة — حتى 3 ميغابايت
               </p>
             </div>
             <div className="space-y-1.5">

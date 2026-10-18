@@ -433,7 +433,7 @@ export function AdminPropertyRequestsManageList({
                       <div>
                         <dt className="text-muted-foreground">آخر تحديث</dt>
                         <dd className="font-medium text-[#0F2744]">
-                          {new Date(row.updatedAt).toLocaleString("ar-IQ")}
+                          {new Date(row.updatedAt).toLocaleString("ar-IQ-u-nu-latn")}
                         </dd>
                       </div>
                     </dl>

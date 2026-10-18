@@ -7,6 +7,7 @@ import type {
 } from "@prisma/client"
 
 import { formatShortArea, type LocationRef } from "@/lib/locations"
+import { formatEnglishNumber, toEnglishDigits } from "@/lib/numerals"
 import { listingImagePublicUrl } from "@/lib/supabase/config"
 import { telUrl, whatsappUrl } from "@/lib/phone"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
@@ -18,7 +19,7 @@ import {
   formatPropertyFloors,
   inferLegacyFloorValues,
   parseLegacyRoomCount,
-  toArabicNumber,
+  toEnglishNumber,
 } from "@/lib/listing-attributes"
 
 export const categoryToPrisma: Record<PropertyCategory, PrismaCategory> = {
@@ -113,7 +114,7 @@ const categoryLabelAr: Record<PropertyCategory, string> = {
 }
 
 export function formatPriceIqd(priceIqd: number, deal: DealType): string {
-  const formatted = priceIqd.toLocaleString("en-US").replace(/,/g, "٫")
+  const formatted = formatEnglishNumber(priceIqd)
   if (deal === "rent") return `${formatted} د.ع / شهر`
   if (deal === "daily") return `${formatted} د.ع / ليلة`
   return `${formatted} د.ع`
@@ -147,8 +148,10 @@ export function toPublicListingCard(
     district: listing.districtSlug,
     neighborhood: listing.neighborhoodSlug,
     complex: listing.complexSlug ?? undefined,
-    complexLabel: complexLabel ?? undefined,
-    street: listing.streetPrivate?.trim() || undefined,
+    complexLabel: complexLabel ? toEnglishDigits(complexLabel) : undefined,
+    street: listing.streetPrivate?.trim()
+      ? toEnglishDigits(listing.streetPrivate.trim())
+      : undefined,
   }
   const imageUrls = listing.images
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -163,7 +166,9 @@ export function toPublicListingCard(
   const buildingFloors =
     listing.buildingFloors ?? legacyFloors.buildingFloors ?? undefined
   const rooms =
-    roomCount != null ? toArabicNumber(roomCount) : listing.rooms ?? "—"
+    roomCount != null
+      ? toEnglishNumber(roomCount)
+      : toEnglishDigits(listing.rooms ?? "—")
   const floor =
     floorNumber != null ? formatFloorNumber(floorNumber) : undefined
   const propertyFloorsMeta =
@@ -171,7 +176,11 @@ export function toPublicListingCard(
       ? formatPropertyFloors(propertyFloors)
       : null
   const structuredMeta = [
-    roomCount != null ? `${toArabicNumber(roomCount)} غرف` : listing.rooms,
+    roomCount != null
+      ? `${toEnglishNumber(roomCount)} غرف`
+      : listing.rooms
+        ? toEnglishDigits(listing.rooms)
+        : null,
     listing.areaM2 ? `${listing.areaM2} م²` : null,
     floor,
     propertyFloorsMeta,
@@ -182,11 +191,11 @@ export function toPublicListingCard(
   return {
     id: listing.id,
     slug: listing.id,
-    title: listing.title,
-    area: formatShortArea(location),
+    title: toEnglishDigits(listing.title),
+    area: toEnglishDigits(formatShortArea(location)),
     location,
     price: formatPriceIqd(listing.priceIqd, deal),
-    meta: structuredMeta || listing.meta || "",
+    meta: toEnglishDigits(structuredMeta || listing.meta || ""),
     rooms,
     roomCount,
     areaM2: listing.areaM2 != null ? String(listing.areaM2) : "—",
@@ -200,12 +209,22 @@ export function toPublicListingCard(
     date: relativeDateAr(listing.publishedAt ?? listing.createdAt),
     image: imageUrls[0] ?? "/placeholder-listing.svg",
     images: imageUrls,
-    description: listing.description,
-    heating: listing.heating ?? undefined,
-    furnished: listing.furnished ?? undefined,
-    ownerPhone: listing.owner?.phone,
-    ownerWhatsapp: listing.owner?.whatsapp ?? listing.owner?.phone,
-    ownerName: listing.owner?.name,
+    description: toEnglishDigits(listing.description),
+    heating: listing.heating ? toEnglishDigits(listing.heating) : undefined,
+    furnished: listing.furnished
+      ? toEnglishDigits(listing.furnished)
+      : undefined,
+    ownerPhone: listing.owner?.phone
+      ? toEnglishDigits(listing.owner.phone)
+      : listing.owner?.phone,
+    ownerWhatsapp: listing.owner?.whatsapp
+      ? toEnglishDigits(listing.owner.whatsapp)
+      : listing.owner?.phone
+        ? toEnglishDigits(listing.owner.phone)
+        : listing.owner?.phone,
+    ownerName: listing.owner?.name
+      ? toEnglishDigits(listing.owner.name)
+      : listing.owner?.name,
     ownerSlug: listing.owner?.id
       ? userAdvertiserSlug(listing.owner.id)
       : undefined,
@@ -215,7 +234,7 @@ export function toPublicListingCard(
     contactMethod: listing.contactMethod ?? undefined,
     mapLat: listing.mapLat ?? null,
     mapLng: listing.mapLng ?? null,
-    services: listing.services ?? [],
+    services: (listing.services ?? []).map(toEnglishDigits),
   }
 }
 

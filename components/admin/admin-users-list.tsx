@@ -69,7 +69,7 @@ const roleMeta: Record<
 
 function formatDate(iso: string) {
   try {
-    return new Intl.DateTimeFormat("ar-IQ", {
+    return new Intl.DateTimeFormat("ar-IQ-u-nu-latn", {
       year: "numeric",
       month: "short",
       day: "numeric",

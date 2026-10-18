@@ -118,7 +118,7 @@ export async function updatePasswordAction(
     const confirm = String(formData.get("confirmPassword") ?? "")
 
     if (password.length < 6) {
-      return { error: "كلمة المرور ٦ أحرف على الأقل." }
+      return { error: "كلمة المرور 6 أحرف على الأقل." }
     }
     if (password !== confirm) {
       return { error: "تأكيد كلمة المرور غير متطابق." }
@@ -149,7 +149,7 @@ export async function updateAvatarAction(
       return { error: "اختر صورة للرفع." }
     }
     if (file.size > 3 * 1024 * 1024) {
-      return { error: "الحد الأقصى للصورة ٣ ميغابايت." }
+      return { error: "الحد الأقصى للصورة 3 ميغابايت." }
     }
     if (!file.type.startsWith("image/")) {
       return { error: "الملف يجب أن يكون صورة." }

@@ -7,6 +7,7 @@ import { slugifyProjectName } from "@/lib/agency-directory"
 import { isDatabaseConfigured, isDatabaseReachable, prisma } from "@/lib/db"
 import { complexesOf, getComplex } from "@/lib/locations"
 import { RESIDENTIAL_PROJECT_KINDS } from "@/lib/project-kinds"
+import { toEnglishDigits } from "@/lib/numerals"
 
 export type ComplexOption = {
   slug: string
@@ -97,7 +98,7 @@ export function mergeComplexOptions(
     seen.add(p.slug)
     out.push({
       slug: p.slug,
-      label: p.name,
+      label: toEnglishDigits(p.name),
       citySlug: p.citySlug,
       districtSlug: p.districtSlug,
       neighborhoodSlug: p.neighborhoodSlug,
@@ -111,7 +112,7 @@ export function mergeComplexOptions(
       seen.add(c.slug)
       out.push({
         slug: c.slug,
-        label: c.label,
+        label: toEnglishDigits(c.label),
         citySlug: city,
         districtSlug: district,
         neighborhoodSlug: neighborhood,
@@ -177,15 +178,15 @@ export async function resolveComplexLabel(
     loc.neighborhood,
     loc.complex
   )?.label
-  if (staticLabel) return staticLabel
-  if (fallbackName?.trim()) return fallbackName.trim()
+  if (staticLabel) return toEnglishDigits(staticLabel)
+  if (fallbackName?.trim()) return toEnglishDigits(fallbackName.trim())
   if (!isDatabaseConfigured()) return loc.complex
   try {
     const p = await prisma.project.findFirst({
       where: { slug: loc.complex },
       select: { name: true },
     })
-    return p?.name ?? loc.complex
+    return toEnglishDigits(p?.name ?? loc.complex)
   } catch {
     return loc.complex
   }
