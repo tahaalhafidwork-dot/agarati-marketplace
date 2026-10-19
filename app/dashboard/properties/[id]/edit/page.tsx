@@ -16,6 +16,7 @@ import {
   parseLegacyRoomCount,
 } from "@/lib/listing-attributes"
 import { classifyLandUse, parseLandUseMeta } from "@/lib/land-uses"
+import { canManageAgencyListing } from "@/lib/agency-service"
 
 export const metadata: Metadata = {
   title: "تعديل إعلان",
@@ -44,7 +45,10 @@ export default async function EditPropertyPage({
     },
   })
   if (!listing) notFound()
-  if (listing.ownerId !== user.id) notFound()
+  const canManage = listing.agencyId
+    ? await canManageAgencyListing(user.id, listing)
+    : listing.ownerId === user.id
+  if (!canManage) notFound()
 
   const category = prismaToCategory[listing.category]
   const legacyFloors = inferLegacyFloorValues(category, listing.floor)
@@ -92,6 +96,7 @@ export default async function EditPropertyPage({
     description: listing.description,
     status: listing.status as ListingWizardInitial["status"],
     moderationNote: listing.moderationNote,
+    listingOwnership: listing.agencyId ? "agency" : "personal",
   }
 
   return (

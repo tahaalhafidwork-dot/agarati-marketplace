@@ -181,6 +181,13 @@ export const NAV_CATALOG = {
     iconKey: "clipboard",
     auth: "required",
   },
+  agencyDashboard: {
+    id: "agencyDashboard",
+    href: "/dashboard/agency",
+    labelAr: "لوحة الوكالة",
+    iconKey: "building",
+    auth: "required",
+  },
   support: {
     id: "support",
     href: "/support",
@@ -248,6 +255,12 @@ export const NAV_CATALOG = {
     id: "adminReports",
     href: "/admin/reports",
     labelAr: "البلاغات",
+    auth: "required",
+  },
+  adminPayments: {
+    id: "adminPayments",
+    href: "/admin/payments",
+    labelAr: "طلبات الدفع",
     auth: "required",
   },
 } as const satisfies Record<string, NavItemDef>

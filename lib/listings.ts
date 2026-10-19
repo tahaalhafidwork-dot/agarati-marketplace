@@ -62,6 +62,12 @@ export const prismaToDeal: Record<PrismaDeal, DealType> = {
 export type ListingWithRelations = Listing & {
   images: ListingImage[]
   owner?: Pick<User, "id" | "name" | "phone" | "whatsapp">
+  agency?: {
+    slug: string
+    name: string
+    phone: string | null
+    whatsapp: string | null
+  } | null
 }
 
 /** Card / list DTO compatible with existing UI components. */
@@ -201,6 +207,10 @@ export function toPublicListingCard(
     .filter(Boolean)
     .join(" · ")
 
+  const advertiser = listing.agency ?? listing.owner
+  const advertiserPhone = advertiser?.phone ?? listing.owner?.phone
+  const advertiserWhatsapp = advertiser?.whatsapp ?? advertiserPhone
+
   return {
     id: listing.id,
     slug: listing.id,
@@ -228,21 +238,21 @@ export function toPublicListingCard(
     furnished: listing.furnished
       ? toEnglishDigits(listing.furnished)
       : undefined,
-    ownerPhone: listing.owner?.phone
-      ? toEnglishDigits(listing.owner.phone)
-      : listing.owner?.phone,
-    ownerWhatsapp: listing.owner?.whatsapp
-      ? toEnglishDigits(listing.owner.whatsapp)
-      : listing.owner?.phone
-        ? toEnglishDigits(listing.owner.phone)
-        : listing.owner?.phone,
-    ownerName: listing.owner?.name
-      ? toEnglishDigits(listing.owner.name)
-      : listing.owner?.name,
-    ownerSlug: listing.owner?.id
-      ? userAdvertiserSlug(listing.owner.id)
-      : undefined,
-    ownerKind: "person",
+    ownerPhone: advertiserPhone
+      ? toEnglishDigits(advertiserPhone)
+      : advertiserPhone,
+    ownerWhatsapp: advertiserWhatsapp
+      ? toEnglishDigits(advertiserWhatsapp)
+      : advertiserWhatsapp,
+    ownerName: advertiser?.name
+      ? toEnglishDigits(advertiser.name)
+      : advertiser?.name,
+    ownerSlug: listing.agency
+      ? `agency:${listing.agency.slug}`
+      : listing.owner?.id
+        ? userAdvertiserSlug(listing.owner.id)
+        : undefined,
+    ownerKind: listing.agency ? "agency" : "person",
     isDemo: false,
     listingNumber: listing.listingNumber ?? listing.id.slice(-5).toUpperCase(),
     contactMethod: listing.contactMethod ?? undefined,

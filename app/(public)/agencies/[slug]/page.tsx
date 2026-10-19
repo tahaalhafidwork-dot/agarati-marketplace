@@ -1,16 +1,17 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Building2, ExternalLink, MapPin, Phone } from "lucide-react"
+import { Building2, ExternalLink, MapPin, Phone, Users } from "lucide-react"
 
 import { AppSubHeader } from "@/components/layout/app-sub-header"
 import { PropertyCardPlaceholder } from "@/components/property"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { fetchAgencyBySlug } from "@/lib/agency-directory"
-import { userAdvertiserSlug } from "@/lib/demo-advertisers"
-import { fetchListingsByAdvertiser } from "@/lib/listing-service"
+import { fetchListingsByAgency } from "@/lib/listing-service"
+import { prisma } from "@/lib/db"
 import { cn } from "@/lib/utils"
+import { whatsappUrl } from "@/lib/phone"
 
 
 function joinLocation(label: string, addressLine: string | null) {
@@ -42,16 +43,30 @@ export default async function AgencyProfilePage({ params }: Props) {
   const agency = await fetchAgencyBySlug(slug)
   if (!agency) notFound()
 
-  const { listings } = await fetchListingsByAdvertiser(
-    userAdvertiserSlug(agency.id)
-  )
+  const [listings, agents] = await Promise.all([
+    fetchListingsByAgency(agency.id),
+    prisma.agencyMembership.findMany({
+      where: { agencyId: agency.id, status: "ACTIVE" },
+      select: {
+        role: true,
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
+      orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
+    }),
+  ])
 
-  const tel = agency.whatsapp || agency.phone
+  const tel = agency.phone
 
   return (
     <div className="mx-auto w-full max-w-7xl pb-8">
       <AppSubHeader title="وكالة عقارية" backHref="/agencies" />
 
+      {agency.coverUrl ? (
+        <div className="h-36 overflow-hidden bg-muted md:h-56">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={agency.coverUrl} alt="" className="size-full object-cover" />
+        </div>
+      ) : null}
       <div className="border-b border-border bg-card px-3 py-5 md:px-4">
         <div className="flex flex-wrap items-start gap-4">
           <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
@@ -95,6 +110,19 @@ export default async function AgencyProfilePage({ params }: Props) {
                   اتصال
                 </a>
               ) : null}
+              {agency.whatsapp ? (
+                <a
+                  href={whatsappUrl(agency.whatsapp)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    buttonVariants({ size: "sm", variant: "outline" }),
+                    "gap-1.5"
+                  )}
+                >
+                  <Phone className="size-3.5" /> واتساب
+                </a>
+              ) : null}
               {agency.socialUrl ? (
                 <a
                   href={agency.socialUrl}
@@ -107,6 +135,42 @@ export default async function AgencyProfilePage({ params }: Props) {
                 >
                   <ExternalLink className="size-3.5" />
                   تواصل اجتماعي
+                </a>
+              ) : null}
+              {[
+                [agency.websiteUrl, "الموقع الإلكتروني"],
+                [agency.instagramUrl, "إنستغرام"],
+                [agency.facebookUrl, "فيسبوك"],
+              ]
+                .filter(
+                  (entry): entry is [string, string] =>
+                    Boolean(entry[0]) && entry[0] !== agency.socialUrl
+                )
+                .map(([url, label]) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      buttonVariants({ size: "sm", variant: "secondary" }),
+                      "gap-1.5"
+                    )}
+                  >
+                    <ExternalLink className="size-3.5" /> {label}
+                  </a>
+                ))}
+              {agency.mapLat != null && agency.mapLng != null ? (
+                <a
+                  href={`https://www.google.com/maps?q=${agency.mapLat},${agency.mapLng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    buttonVariants({ size: "sm", variant: "outline" }),
+                    "gap-1.5"
+                  )}
+                >
+                  <MapPin className="size-3.5" /> الخريطة
                 </a>
               ) : null}
             </div>
@@ -133,16 +197,49 @@ export default async function AgencyProfilePage({ params }: Props) {
         ) : null}
       </div>
 
+      <section id="agents" className="border-b border-border px-3 py-5 md:px-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Users className="size-4 text-[color:var(--brand-gold)]" />
+          <h2 className="text-sm font-semibold text-[#0F2744]">
+            فريق الوكالة ({agents.length})
+          </h2>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {agents.map((member) => (
+            <Link
+              key={member.user.id}
+              href={`/agencies/${encodeURIComponent(agency.slug)}/agents/${member.user.id}`}
+              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-[#B8956C]/60"
+            >
+              <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-[#0F2744]/8 font-semibold text-[#0F2744]">
+                {member.user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={member.user.avatarUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  member.user.name.slice(0, 1)
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#0F2744]">{member.user.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {member.role === "OWNER" ? "صاحب الوكالة" : "وكيل عقاري"}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <div className="px-3 py-4 md:px-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-[#0F2744]">
             إعلانات الوكالة ({listings.length})
           </h2>
           <Link
-            href={`/advertisers/${encodeURIComponent(userAdvertiserSlug(agency.id))}`}
+            href="#agents"
             className="text-xs text-primary hover:underline"
           >
-            عرض كصفحة معلن
+            عرض فريق الوكالة
           </Link>
         </div>
         {listings.length === 0 ? (

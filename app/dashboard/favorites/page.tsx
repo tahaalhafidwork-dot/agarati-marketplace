@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth"
 import { isDatabaseConfigured, prisma } from "@/lib/db"
 import { toPublicListingCard } from "@/lib/listings"
 import { cn } from "@/lib/utils"
+import { publicListingVisibilityWhere } from "@/lib/listing-quota"
 
 export const metadata: Metadata = {
   title: "المفضلة",
@@ -19,7 +20,10 @@ export default async function FavoritesPage() {
   const favorites =
     user && isDatabaseConfigured()
       ? await prisma.favorite.findMany({
-          where: { userId: user.id },
+          where: {
+            userId: user.id,
+            listing: publicListingVisibilityWhere(),
+          },
           orderBy: { createdAt: "desc" },
           include: {
             listing: {
@@ -27,6 +31,9 @@ export default async function FavoritesPage() {
                 images: true,
                 owner: {
                   select: { id: true, name: true, phone: true, whatsapp: true },
+                },
+                agency: {
+                  select: { slug: true, name: true, phone: true, whatsapp: true },
                 },
               },
             },
@@ -42,9 +49,7 @@ export default async function FavoritesPage() {
         })
       : []
 
-  const cards = favorites
-    .filter((f) => f.listing.status === "ACTIVE")
-    .map((f) => toPublicListingCard(f.listing))
+  const cards = favorites.map((f) => toPublicListingCard(f.listing))
 
   return (
     <div className="space-y-8">

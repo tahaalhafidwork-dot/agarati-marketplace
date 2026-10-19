@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth"
 import { isDatabaseConfigured, prisma } from "@/lib/db"
 import { createServiceClient } from "@/lib/supabase/admin"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { ensureAgencyForApprovedOwner } from "@/lib/agency-service"
 
 export type AdminUserActionState = {
   error?: string
@@ -109,18 +110,38 @@ export async function updateAdminUserCredentialsAction(
       ? name
       : undefined
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      email,
-      name,
-      phone,
-      whatsapp: phone,
-      role: resolved.role,
-      accountType: resolved.accountType,
-      agencyUpgradeStatus: resolved.agencyUpgradeStatus,
-      ...(officeName ? { agencyOfficeName: officeName } : {}),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        email,
+        name,
+        phone,
+        whatsapp: phone,
+        role: resolved.role,
+        accountType: resolved.accountType,
+        agencyUpgradeStatus: resolved.agencyUpgradeStatus,
+        ...(officeName ? { agencyOfficeName: officeName } : {}),
+      },
+    })
+    if (kindRaw === "AGENCY") {
+      await ensureAgencyForApprovedOwner(userId, tx)
+    } else {
+      const owned = await tx.agencyMembership.findFirst({
+        where: { userId, role: "OWNER", status: "ACTIVE" },
+        select: { agencyId: true },
+      })
+      if (owned) {
+        await tx.agency.update({
+          where: { id: owned.agencyId },
+          data: { status: "SUSPENDED" },
+        })
+        await tx.agencyMembership.updateMany({
+          where: { agencyId: owned.agencyId, status: "ACTIVE" },
+          data: { status: "LEFT", leftAt: new Date() },
+        })
+      }
+    }
   })
 
   revalidatePath("/admin/users")
@@ -165,6 +186,16 @@ export async function deleteAdminUserAction(
     const adminCount = await prisma.user.count({ where: { role: "ADMIN" } })
     if (adminCount <= 1) {
       return { error: "لا يمكن حذف آخر مشرف في المنصة." }
+    }
+  }
+
+  const ownsAgency = await prisma.agency.findFirst({
+    where: { createdById: id },
+    select: { name: true },
+  })
+  if (ownsAgency) {
+    return {
+      error: `لا يمكن حذف منشئ الوكالة (${ownsAgency.name}) قبل نقل ملكيتها أو أرشفتها إداريًا.`,
     }
   }
 

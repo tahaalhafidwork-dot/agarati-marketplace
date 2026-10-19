@@ -7,6 +7,7 @@ import {
   mobileUnauthorizedResponse,
 } from "@/lib/mobile/auth"
 import { serializeListingForMobile } from "@/lib/mobile/serialize-listing"
+import { publicListingVisibilityWhere } from "@/lib/listing-quota"
 
 /**
  * Thin mobile adapter — list favorites for the Bearer user.
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
   }
 
   const favorites = await prisma.favorite.findMany({
-    where: { userId: user.id },
+    where: {
+      userId: user.id,
+      listing: publicListingVisibilityWhere(),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       listing: {
@@ -33,14 +37,15 @@ export async function GET(request: Request) {
           owner: {
             select: { id: true, name: true, phone: true, whatsapp: true },
           },
+          agency: {
+            select: { slug: true, name: true, phone: true, whatsapp: true },
+          },
         },
       },
     },
   })
 
-  const cards = favorites
-    .filter((f) => f.listing.status === "ACTIVE")
-    .map((f) => toPublicListingCard(f.listing))
+  const cards = favorites.map((f) => toPublicListingCard(f.listing))
 
   return NextResponse.json({
     items: cards.map((card) => ({

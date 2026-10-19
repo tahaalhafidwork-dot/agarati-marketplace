@@ -2,7 +2,6 @@ import type { Prisma } from "@prisma/client"
 
 import { isDatabaseConfigured, isDatabaseReachable, prisma } from "@/lib/db"
 import { formatPublicArea, formatShortArea } from "@/lib/locations"
-import { userAdvertiserSlug } from "@/lib/demo-advertisers"
 import { PROJECT_GALLERY_MAX } from "@/lib/project-gallery"
 import { RESIDENTIAL_PROJECT_KINDS } from "@/lib/project-kinds"
 
@@ -21,6 +20,12 @@ export type AgencyDirectoryCard = {
   neighborhoodSlug: string | null
   locationLabel: string
   projectNames: string[]
+  coverUrl: string | null
+  websiteUrl: string | null
+  instagramUrl: string | null
+  facebookUrl: string | null
+  mapLat: number | null
+  mapLng: number | null
 }
 
 export type AgencyDirectoryFilters = {
@@ -32,7 +37,7 @@ export type AgencyDirectoryFilters = {
 
 /** Public agency profile slug — same u-{id} pattern as advertiser for deep links. */
 export function agencyPublicSlug(userId: string): string {
-  return userAdvertiserSlug(userId)
+  return `u-${userId}`
 }
 
 export function parseAgencyPublicSlug(slug: string): string | null {
@@ -43,94 +48,113 @@ export function parseAgencyPublicSlug(slug: string): string | null {
 
 function approvedAgencyWhere(
   filters: AgencyDirectoryFilters = {}
-): Prisma.UserWhereInput {
-  const where: Prisma.UserWhereInput = {
-    OR: [
-      { accountType: "AGENCY" },
-      { agencyUpgradeStatus: "APPROVED" },
-    ],
+): Prisma.AgencyWhereInput {
+  const where: Prisma.AgencyWhereInput = {
+    status: "APPROVED",
   }
 
   if (filters.projectSlug) {
-    where.agencyProjects = {
+    where.createdBy = {
+      agencyProjects: {
       some: {
         project: { slug: filters.projectSlug, status: "APPROVED" },
+      },
       },
     }
   }
 
-  if (filters.city) where.agencyCitySlug = filters.city
-  if (filters.district) where.agencyDistrictSlug = filters.district
-  if (filters.neighborhood) where.agencyNeighborhoodSlug = filters.neighborhood
+  if (filters.city) where.citySlug = filters.city
+  if (filters.district) where.districtSlug = filters.district
+  if (filters.neighborhood) where.neighborhoodSlug = filters.neighborhood
 
   return where
 }
 
-function toCard(user: {
+function toCard(agency: {
   id: string
   name: string
   phone: string | null
   whatsapp: string | null
-  agencyOfficeName: string | null
-  agencyLogoUrl: string | null
-  agencySocialUrl: string | null
-  agencyBio: string | null
-  agencyAddressLine: string | null
-  agencyCitySlug: string | null
-  agencyDistrictSlug: string | null
-  agencyNeighborhoodSlug: string | null
-  agencyProjects?: { project: { name: string } }[]
+  slug: string
+  logoUrl: string | null
+  coverUrl: string | null
+  bio: string | null
+  addressLine: string | null
+  citySlug: string | null
+  districtSlug: string | null
+  neighborhoodSlug: string | null
+  websiteUrl: string | null
+  instagramUrl: string | null
+  facebookUrl: string | null
+  mapLat: number | null
+  mapLng: number | null
+  createdBy: { agencyProjects?: { project: { name: string } }[] }
 }): AgencyDirectoryCard {
   const locationLabel =
-    user.agencyCitySlug
+    agency.citySlug
       ? formatShortArea({
-          city: user.agencyCitySlug,
-          district: user.agencyDistrictSlug ?? "",
-          neighborhood: user.agencyNeighborhoodSlug ?? "",
+          city: agency.citySlug,
+          district: agency.districtSlug ?? "",
+          neighborhood: agency.neighborhoodSlug ?? "",
         }) ||
         formatPublicArea({
-          city: user.agencyCitySlug,
-          district: user.agencyDistrictSlug ?? "",
-          neighborhood: user.agencyNeighborhoodSlug ?? "",
+          city: agency.citySlug,
+          district: agency.districtSlug ?? "",
+          neighborhood: agency.neighborhoodSlug ?? "",
         })
       : "موقع غير محدد"
 
   return {
-    id: user.id,
-    slug: agencyPublicSlug(user.id),
-    officeName: user.agencyOfficeName?.trim() || user.name,
-    logoUrl: user.agencyLogoUrl,
-    phone: user.phone,
-    whatsapp: user.whatsapp,
-    socialUrl: user.agencySocialUrl,
-    bio: user.agencyBio,
-    addressLine: user.agencyAddressLine,
-    citySlug: user.agencyCitySlug,
-    districtSlug: user.agencyDistrictSlug,
-    neighborhoodSlug: user.agencyNeighborhoodSlug,
+    id: agency.id,
+    slug: agency.slug,
+    officeName: agency.name,
+    logoUrl: agency.logoUrl,
+    phone: agency.phone,
+    whatsapp: agency.whatsapp,
+    socialUrl: agency.instagramUrl ?? agency.facebookUrl ?? agency.websiteUrl,
+    bio: agency.bio,
+    addressLine: agency.addressLine,
+    citySlug: agency.citySlug,
+    districtSlug: agency.districtSlug,
+    neighborhoodSlug: agency.neighborhoodSlug,
     locationLabel,
-    projectNames: (user.agencyProjects ?? []).map((p) => p.project.name),
+    projectNames: (agency.createdBy.agencyProjects ?? []).map((p) => p.project.name),
+    coverUrl: agency.coverUrl,
+    websiteUrl: agency.websiteUrl,
+    instagramUrl: agency.instagramUrl,
+    facebookUrl: agency.facebookUrl,
+    mapLat: agency.mapLat,
+    mapLng: agency.mapLng,
   }
 }
 
 const agencySelect = {
   id: true,
+  slug: true,
   name: true,
   phone: true,
   whatsapp: true,
-  agencyOfficeName: true,
-  agencyLogoUrl: true,
-  agencySocialUrl: true,
-  agencyBio: true,
-  agencyAddressLine: true,
-  agencyCitySlug: true,
-  agencyDistrictSlug: true,
-  agencyNeighborhoodSlug: true,
-  agencyProjects: {
-    include: { project: { select: { name: true, slug: true } } },
-    orderBy: { createdAt: "desc" as const },
+  logoUrl: true,
+  coverUrl: true,
+  websiteUrl: true,
+  instagramUrl: true,
+  facebookUrl: true,
+  bio: true,
+  addressLine: true,
+  citySlug: true,
+  districtSlug: true,
+  neighborhoodSlug: true,
+  mapLat: true,
+  mapLng: true,
+  createdBy: {
+    select: {
+      agencyProjects: {
+        include: { project: { select: { name: true, slug: true } } },
+        orderBy: { createdAt: "desc" as const },
+      },
+    },
   },
-} satisfies Prisma.UserSelect
+} satisfies Prisma.AgencySelect
 
 export async function fetchApprovedAgencies(
   filters: AgencyDirectoryFilters = {},
@@ -138,10 +162,10 @@ export async function fetchApprovedAgencies(
 ): Promise<AgencyDirectoryCard[]> {
   if (!isDatabaseConfigured() || !(await isDatabaseReachable())) return []
   try {
-    const rows = await prisma.user.findMany({
+    const rows = await prisma.agency.findMany({
       where: approvedAgencyWhere(filters),
       select: agencySelect,
-      orderBy: [{ agencyOfficeName: "asc" }, { name: "asc" }],
+      orderBy: { name: "asc" },
       take,
     })
     return rows.map(toCard)
@@ -153,18 +177,15 @@ export async function fetchApprovedAgencies(
 export async function fetchAgencyBySlug(
   slug: string
 ): Promise<AgencyDirectoryCard | null> {
-  const userId = parseAgencyPublicSlug(decodeURIComponent(slug))
-  if (!userId || !isDatabaseConfigured() || !(await isDatabaseReachable())) {
+  const decoded = decodeURIComponent(slug)
+  if (!decoded || !isDatabaseConfigured() || !(await isDatabaseReachable())) {
     return null
   }
   try {
-    const row = await prisma.user.findFirst({
+    const row = await prisma.agency.findFirst({
       where: {
-        id: userId,
-        OR: [
-          { accountType: "AGENCY" },
-          { agencyUpgradeStatus: "APPROVED" },
-        ],
+        slug: decoded,
+        ...approvedAgencyWhere(),
       },
       select: agencySelect,
     })

@@ -14,7 +14,10 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>
 }) {
   const sp = await searchParams
-  const next = sp.next?.startsWith("/") ? sp.next : "/dashboard"
+  const next =
+    sp.next?.startsWith("/") && !sp.next.startsWith("//")
+      ? sp.next
+      : "/dashboard"
   const user = await getSessionUser()
   if (user) {
     redirect(next)

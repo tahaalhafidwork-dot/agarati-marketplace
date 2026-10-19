@@ -9,6 +9,9 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "characterize": "npx --yes tsx tests/characterization/run.ts",
+    "test:subscriptions": "npx --yes tsx tests/subscriptions/run.ts",
+    "test:subscriptions:db": "npx --yes tsx tests/subscriptions/database.ts",
+    "test:subscriptions:services": "node tests/subscriptions/service-runner.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"

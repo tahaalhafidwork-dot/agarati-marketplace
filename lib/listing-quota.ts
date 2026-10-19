@@ -2,31 +2,31 @@ import type { AccountType, AgencyUpgradeStatus } from "@prisma/client"
 import { PHASE_PRODUCTION_BUILD } from "next/constants"
 
 import { prisma } from "@/lib/db"
+import {
+  AGENCY_ACTIVE_LISTING_LIMIT,
+  INDIVIDUAL_ACTIVE_LISTING_LIMIT,
+  LISTING_TERM_DAYS,
+} from "@/lib/billing-policy"
 
 /** Max active inventory for individual listers (draft + pending + live). */
 export const INDIVIDUAL_LISTING_LIMIT = 3
 
 /** Max active inventory for approved agencies. */
-export const AGENCY_LISTING_LIMIT = 12
+export const AGENCY_LISTING_LIMIT = AGENCY_ACTIVE_LISTING_LIMIT
 
 /** Public visibility window from publishedAt. */
-export const LISTING_VISIBLE_DAYS = 90
+export const LISTING_VISIBLE_DAYS = LISTING_TERM_DAYS
 
 export function listingQuotaLimit(opts: {
   accountType: AccountType
   agencyUpgradeStatus: AgencyUpgradeStatus
 }): number {
-  if (
-    opts.accountType === "AGENCY" ||
-    opts.agencyUpgradeStatus === "APPROVED"
-  ) {
-    return AGENCY_LISTING_LIMIT
-  }
-  return INDIVIDUAL_LISTING_LIMIT
+  void opts
+  return INDIVIDUAL_ACTIVE_LISTING_LIMIT
 }
 
 /** Statuses that consume listing quota (paused still counts). */
-export const QUOTA_STATUSES = ["DRAFT", "PENDING", "ACTIVE"] as const
+export const QUOTA_STATUSES = ["PENDING", "ACTIVE"] as const
 
 export function computeExpiresAt(from: Date = new Date()): Date {
   const expires = new Date(from)
@@ -39,17 +39,35 @@ export function publicListingVisibilityWhere(now: Date = new Date()) {
   return {
     status: "ACTIVE" as const,
     visibilityPaused: false,
-    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    AND: [
+      { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      {
+        OR: [
+          { agencyId: null },
+          {
+            agency: {
+              status: "APPROVED" as const,
+              subscriptions: {
+                some: {
+                  status: "ACTIVE" as const,
+                  startsAt: { lte: now },
+                  endsAt: { gt: now },
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
   }
 }
 
 export async function countQuotaListings(ownerId: string): Promise<number> {
-  const now = new Date()
   return prisma.listing.count({
     where: {
       ownerId,
+      agencyId: null,
       status: { in: [...QUOTA_STATUSES] },
-      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
   })
 }
@@ -104,10 +122,11 @@ const EXPIRE_SWEEP_TTL_MS = 60_000
 export async function expireOverdueListings(opts?: {
   ownerId?: string
   listingId?: string
+  agencyId?: string
 }): Promise<number> {
   if (process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) return 0
 
-  const scoped = Boolean(opts?.ownerId || opts?.listingId)
+  const scoped = Boolean(opts?.ownerId || opts?.listingId || opts?.agencyId)
   if (!scoped) {
     const now = Date.now()
     const last = globalForExpire.listingExpireAt ?? 0
@@ -122,6 +141,7 @@ export async function expireOverdueListings(opts?: {
       expiresAt: { lte: now },
       ...(opts?.ownerId ? { ownerId: opts.ownerId } : {}),
       ...(opts?.listingId ? { id: opts.listingId } : {}),
+      ...(opts?.agencyId ? { agencyId: opts.agencyId } : {}),
     },
     data: { status: "EXPIRED" },
   })

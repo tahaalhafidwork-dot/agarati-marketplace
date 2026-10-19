@@ -113,6 +113,12 @@ export function AccountTypePanel({
               </div>
             </div>
             <Link
+              href="/dashboard/agency"
+              className="me-4 inline-flex text-sm font-medium text-primary underline-offset-2 hover:underline"
+            >
+              فتح لوحة الوكالة والاشتراك والوكلاء
+            </Link>
+            <Link
               href="/dashboard/agency-projects"
               className="inline-flex text-sm font-medium text-primary underline-offset-2 hover:underline"
             >

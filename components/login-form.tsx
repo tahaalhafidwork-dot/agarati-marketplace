@@ -79,7 +79,10 @@ export function LoginForm({
                 </Button>
                 <FieldDescription className="text-center">
                   ليس لديك حساب؟{" "}
-                  <Link href="/register" className="text-primary hover:underline">
+                  <Link
+                    href={`/register?next=${encodeURIComponent(nextPath)}`}
+                    className="text-primary hover:underline"
+                  >
                     إنشاء حساب
                   </Link>
                 </FieldDescription>

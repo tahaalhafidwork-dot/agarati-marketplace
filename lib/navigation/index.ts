@@ -61,6 +61,7 @@ export const dashboardNavSurface = asLinks(
     "dashboardOverview",
     "myProperties",
     "addProperty",
+    "agencyDashboard",
     "agencyProjects",
     "messages",
     "favorites",
@@ -76,6 +77,7 @@ export const adminNavSurface = asLinks(
     "adminPropertyRequests",
     "adminUsers",
     "adminProjects",
+    "adminPayments",
     "adminReports"
   )
 ) as readonly { href: string; label: string }[]
