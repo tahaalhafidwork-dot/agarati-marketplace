@@ -1,5 +1,4 @@
 import { formatPublicArea } from "@/lib/locations"
-import { resolveApproximateMapPoint } from "@/lib/map-geo"
 
 /** Max approved community photos shown in a project gallery. */
 export const PROJECT_GALLERY_MAX = 30
@@ -22,11 +21,6 @@ export function projectMapsLinks(opts: {
     district: opts.districtSlug?.trim() || "",
     neighborhood: opts.neighborhoodSlug?.trim() || "",
   }
-  const point = resolveApproximateMapPoint(loc, {
-    seed: `project:${opts.name}:${city}`,
-    label: opts.name,
-  })
-  const { lat, lng } = point.center
   const areaLabel = formatPublicArea({
     city: loc.city,
     district: loc.district || loc.city,
@@ -36,7 +30,7 @@ export function projectMapsLinks(opts: {
 
   return {
     label: areaLabel,
-    openStreetMap: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=14/${lat}/${lng}`,
+    openStreetMap: `https://www.openstreetmap.org/search?query=${q}`,
     googleMaps: `https://www.google.com/maps/search/?api=1&query=${q}`,
   }
 }

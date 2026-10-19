@@ -21,6 +21,36 @@ export function roomCountOptionsForCategory(
     : ROOM_COUNT_OPTIONS.slice(1)
 }
 
+export function propertyFloorOptionsForCategory(
+  category?: PropertyCategory | "",
+): readonly number[] {
+  if (category === "apartment") return PROPERTY_FLOOR_OPTIONS.slice(0, 3)
+  if (category === "house" || category === "villa") {
+    return PROPERTY_FLOOR_OPTIONS.slice(0, 4)
+  }
+  if (category === "office") return PROPERTY_FLOOR_OPTIONS.slice(0, 5)
+  if (category === "building") return PROPERTY_FLOOR_OPTIONS
+  return []
+}
+
+export function isMoreThanThreePropertyFloors(
+  category: PropertyCategory | undefined,
+  value: number,
+): boolean {
+  return (category === "house" || category === "villa") && value === 4
+}
+
+export function matchesPropertyFloorFilter(
+  category: PropertyCategory,
+  actual: number | null,
+  selected: number,
+): boolean {
+  if (actual == null) return false
+  return isMoreThanThreePropertyFloors(category, selected)
+    ? actual >= 4
+    : actual === selected
+}
+
 export function toEnglishNumber(value: number): string {
   return String(value)
 }
@@ -106,11 +136,16 @@ export function inferLegacyFloorValues(
     category === "villa" ||
     category === "building"
   ) {
-    const propertyFloors = /دوبلكس|طابقان/.test(normalized)
-      ? 2
-      : /تربلكس|ثلاثي/.test(normalized)
-        ? 3
-        : numbers[0] ?? (/أرضي|مستقل|طابق واحد/.test(normalized) ? 1 : null)
+    const propertyFloors =
+      (category === "house" || category === "villa") &&
+      /أكثر من\s*3/.test(fromArabicDigits(normalized))
+        ? 4
+        : /دوبلكس|طابقان/.test(normalized)
+          ? 2
+          : /تربلكس|ثلاثي/.test(normalized)
+            ? 3
+            : numbers[0] ??
+              (/أرضي|مستقل|طابق واحد/.test(normalized) ? 1 : null)
     return { floorNumber: null, propertyFloors, buildingFloors: null }
   }
 
@@ -118,15 +153,38 @@ export function inferLegacyFloorValues(
 }
 
 export function formatFloorNumber(value: number): string {
-  if (value === 0) return "0 (أرضي)"
+  if (value === 0) return "أرضي"
   if (value < 0) return `${toEnglishNumber(value)} (قبو)`
   return toEnglishNumber(value)
 }
 
-export function formatPropertyFloors(value: number): string {
-  if (value === 1) return "طابق واحد"
-  if (value === 2) return "طابقان (دوبلكس)"
-  if (value === 3) return "3 طوابق (تربلكس)"
+export function formatPropertyFloors(
+  value: number,
+  category?: PropertyCategory | "",
+): string {
+  const usesResidentialLayoutName =
+    category === "apartment" || category === "house" || category === "villa"
+
+  if (
+    (category === "house" || category === "villa") &&
+    value >= 4
+  ) {
+    return "أكثر من 3 طوابق"
+  }
+
+  if (value === 1) {
+    return usesResidentialLayoutName
+      ? "1 · طابق واحد (فلات)"
+      : "1 · طابق واحد"
+  }
+  if (value === 2) {
+    return usesResidentialLayoutName ? "2 · طابقان (دوبلكس)" : "2 · طابقان"
+  }
+  if (value === 3) {
+    return usesResidentialLayoutName
+      ? "3 · ثلاثة طوابق (تربلكس)"
+      : "3 · ثلاثة طوابق"
+  }
   return `${toEnglishNumber(value)} طوابق`
 }
 
@@ -153,5 +211,5 @@ export function legacyFloorValue(input: {
   }
   return input.propertyFloors == null
     ? null
-    : formatPropertyFloors(input.propertyFloors)
+    : formatPropertyFloors(input.propertyFloors, input.category)
 }

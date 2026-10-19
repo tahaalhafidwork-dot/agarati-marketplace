@@ -14,7 +14,9 @@ import {
   BUILDING_FLOOR_OPTIONS,
   FLOOR_NUMBER_OPTIONS,
   FURNISHED_OPTIONS,
-  PROPERTY_FLOOR_OPTIONS,
+  formatFloorNumber,
+  formatPropertyFloors,
+  propertyFloorOptionsForCategory,
   roomCountOptionsForCategory,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
@@ -59,25 +61,36 @@ function NumberSelect({
   value,
   options,
   placeholder,
+  formatOption = toEnglishNumber,
   onChange,
 }: {
   id: string
   value: string
   options: readonly number[]
   placeholder: string
+  formatOption?: (value: number) => string
   onChange: (value: string) => void
 }) {
   return (
     <Select value={value || null} onValueChange={(next) => onChange(next ?? "")}>
       <SelectTrigger id={id} className="h-10 w-full bg-white">
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>
+          {(selectedValue: string | null) =>
+            selectedValue == null
+              ? placeholder
+              : formatOption(Number(selectedValue))
+          }
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option} value={String(option)}>
-            {toEnglishNumber(option)}
-          </SelectItem>
-        ))}
+        {options.map((option) => {
+          const label = formatOption(option)
+          return (
+            <SelectItem key={option} value={String(option)}>
+              <span dir="auto">{label}</span>
+            </SelectItem>
+          )
+        })}
       </SelectContent>
     </Select>
   )
@@ -189,11 +202,12 @@ export function DetailsStep({
               id="floorNumberUi"
               value={floorNumber}
               options={FLOOR_NUMBER_OPTIONS}
+              formatOption={formatFloorNumber}
               onChange={onFloorNumberChange}
               placeholder="اختر الطابق"
             />
             <p className="text-[0.65rem] text-muted-foreground">
-              0 = أرضي، والأرقام السالبة = قبو.
+              «أرضي» للطابق 0، والأرقام السالبة = قبو.
             </p>
           </div>
         ) : null}
@@ -203,12 +217,19 @@ export function DetailsStep({
             <NumberSelect
               id="propertyFloorsUi"
               value={propertyFloors}
-              options={PROPERTY_FLOOR_OPTIONS}
+              options={propertyFloorOptionsForCategory(category)}
+              formatOption={(floorCount) =>
+                formatPropertyFloors(floorCount, category)
+              }
               onChange={onPropertyFloorsChange}
               placeholder="اختر العدد"
             />
             <p className="text-[0.65rem] text-muted-foreground">
-              2 = دوبلكس، 3 = تربلكس؛ المقصود الطوابق التي يشغلها العقار نفسه.
+              {category === "house" || category === "villa"
+                ? "فلات لطابق واحد، دوبلكس لطابقين، تربلكس لثلاثة، أو أكثر من 3 طوابق."
+                : category === "apartment"
+                  ? "فلات لطابق واحد، دوبلكس لطابقين، وتربلكس لثلاثة طوابق؛ المقصود الطوابق التي تشغلها الوحدة نفسها."
+                  : "اختر عدد الطوابق التي يشغلها العقار نفسه."}
             </p>
           </div>
         ) : null}

@@ -1,14 +1,15 @@
 import { normalizeIraqPhone } from "@/lib/phone"
 import { parseServicesFromForm } from "@/lib/listing-services"
 import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
+import { isLandUse, type LandUse } from "@/lib/land-uses"
 import {
   BUILDING_FLOOR_OPTIONS,
   FLOOR_NUMBER_OPTIONS,
-  PROPERTY_FLOOR_OPTIONS,
   legacyFloorValue,
   legacyRoomsValue,
   parseFurnishedOption,
   parseIntegerOption,
+  propertyFloorOptionsForCategory,
   roomCountOptionsForCategory,
 } from "@/lib/listing-attributes"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
@@ -20,6 +21,7 @@ export type ParsedListingForm = {
   description: string
   category: PropertyCategory
   deal: DealType
+  landUse: LandUse | null
   priceIqd: number
   rooms: string | null
   roomCount: number | null
@@ -51,6 +53,9 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
   const description = String(formData.get("description") ?? "").trim()
   const category = String(formData.get("category") ?? "") as PropertyCategory
   const deal = String(formData.get("deal") ?? "") as DealType
+  const landUseRaw = String(formData.get("landUse") ?? "").trim()
+  const landUse =
+    category === "land" && isLandUse(landUseRaw) ? landUseRaw : null
   const flags = CATEGORY_FIELD_FLAGS[category]
   const priceRaw = String(formData.get("price") ?? "").replace(/\D/g, "")
   const priceIqd = Number(priceRaw)
@@ -69,7 +74,7 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
   const propertyFloors = flags?.propertyFloors
     ? parseIntegerOption(
         formData.get("propertyFloors"),
-        PROPERTY_FLOOR_OPTIONS
+        propertyFloorOptionsForCategory(category)
       )
     : null
   const buildingFloors = flags?.buildingFloors
@@ -118,6 +123,7 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
     description,
     category,
     deal,
+    landUse,
     priceIqd,
     rooms,
     roomCount,
@@ -162,6 +168,9 @@ export function validateListingFormCore(
     return "أدخل سعراً صحيحاً."
   }
   const flags = CATEGORY_FIELD_FLAGS[data.category]
+  if (data.category === "land" && !data.landUse) {
+    return "اختر صفة إعمار الأرض من القائمة."
+  }
   if (flags?.rooms && data.roomCount == null) {
     return "اختر عدد الغرف من القائمة."
   }

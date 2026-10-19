@@ -3,8 +3,11 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
   Building2,
+  Camera,
   ChevronLeft,
   ExternalLink,
+  Globe2,
+  Map,
   MapPinned,
 } from "lucide-react"
 
@@ -101,150 +104,173 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <div className="space-y-0 px-3 md:px-4">
-        {/* نبذة + روابط عملية */}
-        <section className="space-y-3 border-b border-border py-4">
-          <h2 className="text-sm font-semibold text-[#0F2744]">نبذة عن المشروع</h2>
+      <div className="space-y-4 px-3 py-4 md:px-4 md:py-5">
+        <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-[0_6px_24px_rgba(15,39,68,0.04)] md:p-5">
+          <h2 className="text-base font-semibold text-[#0F2744]">نبذة عن المشروع</h2>
           {project.summary ? (
-            <p className="text-sm leading-7 text-[#0F2744]/90">{project.summary}</p>
+            <p className="mt-2 text-sm leading-7 text-[#0F2744]/85">
+              {project.summary}
+            </p>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
               ستُضاف نبذة أوضح عن المشروع بعد استكمال بيانات الإدارة.
             </p>
           )}
 
-          {(maps || project.websiteUrl) && (
-            <div className="space-y-2 rounded-lg border border-border bg-card px-2.5 py-2">
-              {maps ? (
-                <p className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-[#0F2744]">
-                  <MapPinned
-                    className="size-3.5 shrink-0 text-[color:var(--brand-gold)]"
-                    aria-hidden
-                  />
-                  <span className="truncate">{maps.label}</span>
-                  <span className="shrink-0 font-normal text-muted-foreground">
-                    · موقع تقريبي
+          <div className="mt-4 border-t border-border/70 pt-4">
+            {maps ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#0F2744] text-[#f8f1e6] shadow-sm">
+                    <MapPinned className="size-5" aria-hidden />
                   </span>
-                </p>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                {maps ? (
-                  <>
-                    <a
-                      href={maps.googleMaps}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium text-[#0F2744] transition hover:bg-[#f7f3ec]"
-                    >
-                      خرائط Google
-                    </a>
-                    <a
-                      href={maps.openStreetMap}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium text-[#0F2744] transition hover:bg-[#f7f3ec]"
-                    >
-                      OpenStreetMap
-                    </a>
-                  </>
-                ) : null}
-                {project.websiteUrl ? (
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[#0F2744]">عنوان المشروع</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                      {maps.label}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <a
-                    href={project.websiteUrl}
+                    href={maps.googleMaps}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-[#0F2744] transition hover:bg-[#f7f3ec]"
+                    className="group inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[color:var(--brand-gold)]/25 bg-[#faf6ef] px-2 text-[0.7rem] font-semibold text-[#0F2744] shadow-sm transition hover:border-[color:var(--brand-gold)]/50 hover:bg-[#f7f0e5]"
                   >
-                    <ExternalLink className="size-3.5 shrink-0 text-[color:var(--brand-gold)]" />
-                    موقع المشروع الرسمي
+                    <Map className="size-4 text-[color:var(--brand-gold)]" aria-hidden />
+                    خرائط Google
+                    <ExternalLink className="size-3 text-muted-foreground" aria-hidden />
                   </a>
-                ) : null}
-              </div>
-            </div>
-          )}
+                  <a
+                    href={maps.openStreetMap}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[color:var(--brand-gold)]/25 bg-[#faf6ef] px-2 text-[0.7rem] font-semibold text-[#0F2744] shadow-sm transition hover:border-[color:var(--brand-gold)]/50 hover:bg-[#f7f0e5]"
+                  >
+                    <MapPinned className="size-4 text-[color:var(--brand-gold)]" aria-hidden />
+                    OpenStreetMap
+                    <ExternalLink className="size-3 text-muted-foreground" aria-hidden />
+                  </a>
+                </div>
+              </>
+            ) : (
+              <p className="rounded-xl border border-dashed border-border bg-muted/20 px-3 py-5 text-center text-xs text-muted-foreground">
+                لم يُستكمل عنوان المشروع على الخريطة بعد.
+              </p>
+            )}
+
+            {project.websiteUrl ? (
+              <a
+                href={project.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group mt-2.5 flex min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3 text-xs font-semibold text-[#0F2744] transition hover:bg-[#f7f3ec]"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Globe2 className="size-4 text-[color:var(--brand-gold)]" aria-hidden />
+                  موقع المشروع الرسمي
+                </span>
+                <ExternalLink className="size-3.5 text-muted-foreground" aria-hidden />
+              </a>
+            ) : null}
+          </div>
         </section>
 
-        {/* معرض — مساهمات حقيقية فقط */}
-        <section className="space-y-2.5 border-b border-border py-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold text-[#0F2744]">
-                صور من الموقع
-              </h2>
-              <p className="mt-0.5 text-[0.65rem] leading-4 text-muted-foreground">
-                مساهمات المستخدمين بعد موافقة الإدارة
+        <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_8px_28px_rgba(15,39,68,0.05)]">
+          <div className="flex items-start gap-3 border-b border-border/70 p-4 md:p-5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--brand-gold)]/12 text-[#70583d]">
+              <Building2 className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-[#0F2744]">
+                  الوكالات العقارية المسوّقة
+                </h2>
+                <span className="rounded-full bg-[#0F2744] px-2.5 py-1 text-[0.65rem] font-semibold text-white tabular-nums">
+                  {agencies.length}
+                </span>
+              </div>
+              <p className="mt-1 text-[0.68rem] leading-5 text-muted-foreground">
+                الجهات المعتمدة لتسويق وحدات هذا المشروع والتواصل حولها.
               </p>
             </div>
-            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[0.65rem] tabular-nums text-muted-foreground">
-              {Math.min(approvedCount, PROJECT_GALLERY_MAX)}/{PROJECT_GALLERY_MAX}
-            </span>
           </div>
-          <ProjectPhotoGallery photos={gallery} projectName={project.name} />
-          <ProjectPhotoContributeForm
-            projectId={project.id}
-            approvedCount={approvedCount}
-            isSignedIn={Boolean(session)}
-          />
-        </section>
 
-        {/* وكالات */}
-        <section className="space-y-3 py-4">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-[#0F2744]">
-              وكالات المشروع
-              <span className="ms-1.5 font-normal text-muted-foreground">
-                ({agencies.length})
-              </span>
-            </h2>
+          <div className="p-3 md:p-4">
+            {agencies.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border bg-muted/20 px-3 py-7 text-center text-xs leading-5 text-muted-foreground">
+                لا توجد وكالة عقارية مرتبطة بهذا المشروع بعد.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-background/60">
+                {agencies.map((agency) => (
+                  <li key={agency.id}>
+                    <Link
+                      href={`/agencies/${encodeURIComponent(agency.slug)}`}
+                      className="group flex items-center gap-3 px-3 py-3 transition hover:bg-[#f7f3ec]/80"
+                    >
+                      <div className="relative size-10 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-muted">
+                        {agency.logoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={agency.logoUrl} alt="" className="size-full object-cover" />
+                        ) : (
+                          <div className="flex size-full items-center justify-center">
+                            <Building2 className="size-4 text-[color:var(--brand-gold)]" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[#0F2744]">
+                          {agency.officeName}
+                        </p>
+                        <p className="mt-0.5 truncate text-[0.68rem] text-muted-foreground">
+                          {agency.locationLabel}
+                        </p>
+                      </div>
+                      <ChevronLeft className="size-4 shrink-0 text-muted-foreground transition group-hover:-translate-x-0.5 group-hover:text-[#0F2744]" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             <Link
               href={`/agencies?mode=project&project=${encodeURIComponent(project.slug)}`}
-              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
+              className="mt-3 flex min-h-10 w-full items-center justify-center gap-1 rounded-xl border border-border/80 bg-[#faf6ef] px-3 text-xs font-semibold text-[#0F2744] transition hover:border-[color:var(--brand-gold)]/45 hover:bg-[#f7f0e5]"
             >
-              الدليل
-              <ChevronLeft className="size-3.5" />
+              عرض دليل الوكالات
+              <ChevronLeft className="size-3.5" aria-hidden />
             </Link>
           </div>
+        </section>
 
-          {agencies.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-              لا وكالات مربوطة بهذا المشروع بعد.
-            </p>
-          ) : (
-            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {agencies.map((a) => (
-                <li key={a.id}>
-                  <Link
-                    href={`/agencies/${encodeURIComponent(a.slug)}`}
-                    className="flex items-center gap-2.5 px-2.5 py-2.5 transition hover:bg-[#f7f3ec]/80"
-                  >
-                    <div className="relative size-9 shrink-0 overflow-hidden rounded-md bg-muted">
-                      {a.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={a.logoUrl}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex size-full items-center justify-center">
-                          <Building2 className="size-3.5 text-[color:var(--brand-gold)]" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[#0F2744]">
-                        {a.officeName}
-                      </p>
-                      <p className="truncate text-[0.65rem] text-muted-foreground">
-                        {a.locationLabel}
-                      </p>
-                    </div>
-                    <ChevronLeft className="size-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+        <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_8px_28px_rgba(15,39,68,0.05)]">
+          <div className="flex items-start gap-3 border-b border-border/70 p-4 md:p-5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--brand-gold)]/12 text-[#70583d]">
+              <Camera className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-[#0F2744]">مشاركات الصور</h2>
+                <span className="rounded-full bg-muted px-2.5 py-1 text-[0.65rem] font-semibold text-muted-foreground tabular-nums">
+                  {Math.min(approvedCount, PROJECT_GALLERY_MAX)}/{PROJECT_GALLERY_MAX}
+                </span>
+              </div>
+              <p className="mt-1 text-[0.68rem] leading-5 text-muted-foreground">
+                صور حقيقية يشاركها المستخدمون وتظهر بعد مراجعة الإدارة.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3 p-3 md:p-4">
+            <ProjectPhotoGallery photos={gallery} projectName={project.name} />
+            <ProjectPhotoContributeForm
+              projectId={project.id}
+              approvedCount={approvedCount}
+              isSignedIn={Boolean(session)}
+            />
+          </div>
         </section>
       </div>
     </div>

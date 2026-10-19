@@ -5,6 +5,11 @@ import type {
 
 import { PAGE_SIZE } from "@/lib/constants"
 import { isDatabaseConfigured, isDatabaseReachable, prisma } from "@/lib/db"
+import {
+  classifyLandUse,
+  encodeLandUseMeta,
+  LAND_USE_SEARCH_TERMS,
+} from "@/lib/land-uses"
 import { queryListings, type ListingQuery } from "@/lib/listing-query"
 import {
   expireOverdueListings,
@@ -56,6 +61,7 @@ import {
   formatFloorNumber,
   formatPropertyFloors,
   inferLegacyFloorValues,
+  isMoreThanThreePropertyFloors,
   parseLegacyRoomCount,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
@@ -73,12 +79,16 @@ function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
       {
         ...item,
         id: item.slug,
+        landUse:
+          item.category === "land"
+            ? classifyLandUse(`${item.title} ${item.description} ${item.meta}`)
+            : undefined,
         meta: [
           roomCount == null ? item.rooms : `${toEnglishNumber(roomCount)} غرف`,
           item.areaM2 === "—" ? null : `${item.areaM2} م²`,
           floor,
           propertyFloors != null && propertyFloors > 1
-            ? formatPropertyFloors(propertyFloors)
+            ? formatPropertyFloors(propertyFloors, item.category)
             : null,
         ]
           .filter(Boolean)
@@ -244,7 +254,12 @@ export function buildListingWhere(query: ListingQuery): Prisma.ListingWhereInput
   if (query.rooms != null) where.roomCount = query.rooms
   if (query.floor != null) where.floorNumber = query.floor
   if (query.propertyFloors != null) {
-    where.propertyFloors = query.propertyFloors
+    where.propertyFloors = isMoreThanThreePropertyFloors(
+      query.category,
+      query.propertyFloors,
+    )
+      ? { gte: 4 }
+      : query.propertyFloors
   }
   if (query.minPrice != null || query.maxPrice != null) {
     where.priceIqd = {}
@@ -255,6 +270,19 @@ export function buildListingWhere(query: ListingQuery): Prisma.ListingWhereInput
     where.areaM2 = {}
     if (query.minArea != null) where.areaM2.gte = query.minArea
     if (query.maxArea != null) where.areaM2.lte = query.maxArea
+  }
+  if (query.landUse) {
+    const textMatches: Prisma.ListingWhereInput[] = [
+      { meta: encodeLandUseMeta(query.landUse) },
+      ...LAND_USE_SEARCH_TERMS[query.landUse].flatMap((term) => [
+        { title: { contains: term, mode: "insensitive" as const } },
+        { description: { contains: term, mode: "insensitive" as const } },
+      ]),
+    ]
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      { OR: textMatches },
+    ]
   }
 
   const intent = parseSearchIntent(query.q)
@@ -310,8 +338,9 @@ export async function fetchPublicListings(
     const where = buildListingWhere(query)
     const intent = parseSearchIntent(query.q)
     // Listing-number pad matching may need a slightly wider SQL window.
-    const take =
-      intent?.kind === "listingNumber"
+    const take = query.landUse
+      ? Math.min(limit * 3, 72)
+      : intent?.kind === "listingNumber"
         ? Math.min(limit * 2, 48)
         : limit
 
@@ -332,6 +361,15 @@ export async function fetchPublicListings(
     let cards = rows.map((r) =>
       toPublicListingCard(r, { complexLabels: labels })
     )
+
+    if (query.landUse) {
+      cards = cards.filter(
+        (card) =>
+          (card.landUse ??
+            classifyLandUse(`${card.title} ${card.description} ${card.meta}`)) ===
+          query.landUse,
+      )
+    }
 
     if (intent?.kind === "listingNumber") {
       cards = cards.filter((card) =>
@@ -362,6 +400,12 @@ export async function fetchListingById(
       {
         ...sample,
         id: sample.slug,
+        landUse:
+          sample.category === "land"
+            ? classifyLandUse(
+                `${sample.title} ${sample.description} ${sample.meta}`,
+              )
+            : undefined,
         ownerPhone: "9647501234567",
         ownerWhatsapp: "9647501234567",
         listingNumber: formatListingNumber(sample.listingNumber),

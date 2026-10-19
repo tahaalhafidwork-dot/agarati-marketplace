@@ -22,6 +22,7 @@ import {
   formatPublicArea,
   neighborhoodsOf,
 } from "@/lib/locations"
+import { LAND_USE_LABELS, type LandUse } from "@/lib/land-uses"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { categoryLabels, dealLabels } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
@@ -42,6 +43,7 @@ export type ListingWizardInitial = {
   listingId: string
   category: PropertyCategory
   deal: DealType
+  landUse?: LandUse
   title: string
   price: string
   roomCount: string
@@ -90,6 +92,9 @@ export function NewListingForm({
     initialValues?.category ?? ""
   )
   const [deal, setDeal] = useState<DealType | "">(initialValues?.deal ?? "")
+  const [landUse, setLandUse] = useState<LandUse | "">(
+    initialValues?.landUse ?? "",
+  )
   const [title, setTitle] = useState(initialValues?.title ?? "")
   const [price, setPrice] = useState(initialValues?.price ?? "")
   const [roomCount, setRoomCount] = useState(initialValues?.roomCount ?? "")
@@ -162,6 +167,7 @@ export function NewListingForm({
 
   function applyCategory(value: PropertyCategory) {
     setCategory(value)
+    if (value !== "land") setLandUse("")
     const f = CATEGORY_FIELD_FLAGS[value]
     if (!f.rooms) setRoomCount("")
     if (!f.floorNumber) setFloorNumber("")
@@ -195,6 +201,10 @@ export function NewListingForm({
       }
       if (!isDealAllowedForCategory(category, deal)) {
         setStepError(dailyNotAllowedMessage(category))
+        return
+      }
+      if (category === "land" && !landUse) {
+        setStepError("اختر صفة إعمار الأرض للمتابعة.")
         return
       }
       setStep("details")
@@ -334,6 +344,11 @@ export function NewListingForm({
       ) : null}
       <input type="hidden" name="category" value={category} />
       <input type="hidden" name="deal" value={deal} />
+      <input
+        type="hidden"
+        name="landUse"
+        value={category === "land" ? landUse : ""}
+      />
       <input type="hidden" name="title" value={title} />
       <input type="hidden" name="price" value={price} />
       <input
@@ -492,9 +507,14 @@ export function NewListingForm({
           <TypeStep
             category={category}
             deal={deal}
+            landUse={landUse}
             onApplyCategory={applyCategory}
             onDealChange={setDeal}
-            onClearCategory={() => setCategory("")}
+            onLandUseChange={setLandUse}
+            onClearCategory={() => {
+              setCategory("")
+              setLandUse("")
+            }}
             onStepError={setStepError}
           />
         ) : null}
@@ -641,6 +661,9 @@ export function NewListingForm({
             <dd className="font-medium text-[#0F2744]">
               {category ? categoryLabels[category] : "—"}
               {deal ? ` · ${dealLabels[deal]}` : ""}
+              {category === "land" && landUse
+                ? ` · ${LAND_USE_LABELS[landUse]}`
+                : ""}
             </dd>
           </div>
           <div>

@@ -15,6 +15,7 @@ import {
   normalizeLegacyFurnished,
   parseLegacyRoomCount,
 } from "@/lib/listing-attributes"
+import { classifyLandUse, parseLandUseMeta } from "@/lib/land-uses"
 
 export const metadata: Metadata = {
   title: "تعديل إعلان",
@@ -52,6 +53,13 @@ export default async function EditPropertyPage({
     listingId: listing.id,
     category,
     deal: prismaToDeal[listing.deal],
+    landUse:
+      category === "land"
+        ? parseLandUseMeta(listing.meta) ??
+          classifyLandUse(
+            `${listing.title} ${listing.description} ${listing.meta ?? ""}`,
+          )
+        : undefined,
     title: listing.title,
     price: String(listing.priceIqd),
     roomCount: String(

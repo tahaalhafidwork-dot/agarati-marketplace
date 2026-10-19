@@ -1,6 +1,7 @@
 import { listApprovedProjectsForComplexes } from "@/lib/complex-options"
 import { PAGE_SIZE } from "@/lib/constants"
 import { isDatabaseReachable, prisma } from "@/lib/db"
+import { LAND_USE_LABELS } from "@/lib/land-uses"
 import {
   parseListingQuery,
   sortLabel,
@@ -74,16 +75,25 @@ export type BrowsePageModel = {
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>
 
+function browseTitle(query: ListingQuery): string {
+  if (query.category === "land" && query.landUse) {
+    const deal = query.deal ? ` ${dealLabels[query.deal]}` : ""
+    return `${LAND_USE_LABELS[query.landUse]}${deal}`
+  }
+  return listingsPageTitle(query)
+}
+
 export function buildPropertiesBrowseMetadata(sp: SearchParamsRecord): {
   title: string
   description: string
 } {
   const query = parseListingQuery(sp)
-  const title = listingsPageTitle(query)
+  const title = browseTitle(query)
 
   const parts: string[] = []
   if (query.category) parts.push(categoryLabels[query.category])
   if (query.deal) parts.push(dealLabels[query.deal])
+  if (query.landUse) parts.push(LAND_USE_LABELS[query.landUse])
   if (query.city) {
     const city = iraqCities.find((c) => c.slug === query.city)
     if (city) parts.push(city.label)
@@ -120,11 +130,14 @@ export async function loadPropertiesBrowsePage(input: {
     fetchPublicListings(query),
     listApprovedProjectsForComplexes(300),
   ])
-  const title = listingsPageTitle(query)
+  const title = browseTitle(query)
   const countLabel = String(listings.length)
-  const backHref = query.category
-    ? `/categories/${categorySlugs[query.category]}`
-    : "/categories"
+  const backHref =
+    query.category === "land" && query.deal && query.landUse
+      ? `/categories/lands/${query.deal}`
+      : query.category
+        ? `/categories/${categorySlugs[query.category]}`
+        : "/categories"
 
   const typeLabel = query.category
     ? categoryLabels[query.category]

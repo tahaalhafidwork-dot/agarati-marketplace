@@ -19,6 +19,7 @@ import {
 import { getSessionUser } from "@/lib/auth"
 import { isDatabaseConfigured, prisma } from "@/lib/db"
 import { formatPublicArea } from "@/lib/locations"
+import { LAND_USE_LABELS } from "@/lib/land-uses"
 import {
   pointFromStoredCoords,
   resolveApproximateMapPoint,
@@ -150,6 +151,14 @@ export default async function PropertyDetailPage({
       label: "نوع العقار",
       value: `${dealLabels[listing.deal]} · ${listing.type}`,
     },
+    ...(listing.landUse
+      ? [
+          {
+            label: "صفة إعمار الأرض",
+            value: LAND_USE_LABELS[listing.landUse],
+          },
+        ]
+      : []),
     { label: "م² (صافي)", value: listing.areaM2 },
     ...(listing.roomCount != null || listing.rooms !== "—"
       ? [{ label: "عدد الغرف", value: listing.rooms }]
@@ -161,7 +170,10 @@ export default async function PropertyDetailPage({
       ? [
           {
             label: "عدد طوابق العقار",
-            value: formatPropertyFloors(listing.propertyFloors),
+            value: formatPropertyFloors(
+              listing.propertyFloors,
+              listing.category,
+            ),
           },
         ]
       : []),

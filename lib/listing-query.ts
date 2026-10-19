@@ -9,6 +9,12 @@ import {
 } from "@/lib/locations"
 import { mergeComplexOptions } from "@/lib/complex-options"
 import {
+  classifyLandUse,
+  isLandUse,
+  LAND_USE_LABELS,
+  type LandUse,
+} from "@/lib/land-uses"
+import {
   categoryLabels,
   dealLabels,
   filterListings as filterByTypeDeal,
@@ -24,10 +30,12 @@ import { matchesSmartSearch } from "@/lib/search"
 import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
 import {
   FLOOR_NUMBER_OPTIONS,
-  PROPERTY_FLOOR_OPTIONS,
+  formatPropertyFloors,
   inferLegacyFloorValues,
+  matchesPropertyFloorFilter,
   parseIntegerOption,
   parseLegacyRoomCount,
+  propertyFloorOptionsForCategory,
   roomCountOptionsForCategory,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
@@ -42,6 +50,7 @@ export type SortKey =
 export type ListingQuery = {
   category?: PropertyCategory
   deal?: DealType
+  landUse?: LandUse
   /** City slug e.g. erbil */
   city?: string
   district?: string
@@ -68,7 +77,6 @@ export const sortOptions: { value: SortKey; label: string }[] = [
 ]
 
 export const filterFloorOptions = FLOOR_NUMBER_OPTIONS
-export const filterPropertyFloorOptions = PROPERTY_FLOOR_OPTIONS
 
 const DATE_RANK: Record<string, number> = {
   اليوم: 0,
@@ -118,6 +126,7 @@ export function parseListingQuery(
 
   const type = get("type")
   const deal = get("deal")
+  const landUse = get("landUse")
   const city = get("city")
   const district = get("district")
   const neighborhood = get("neighborhood")
@@ -147,6 +156,10 @@ export function parseListingQuery(
   return {
     category,
     deal: deal && isDealType(deal) ? deal : undefined,
+    landUse:
+      category === "land" && landUse && isLandUse(landUse)
+        ? landUse
+        : undefined,
     city: city?.trim() || undefined,
     district: district?.trim() || undefined,
     neighborhood: neighborhood?.trim() || undefined,
@@ -156,7 +169,10 @@ export function parseListingQuery(
       ? parseIntegerOption(floorRaw, FLOOR_NUMBER_OPTIONS) ?? undefined
       : undefined,
     propertyFloors: categoryFlags?.propertyFloors
-      ? parseIntegerOption(propertyFloorsRaw, PROPERTY_FLOOR_OPTIONS) ??
+      ? parseIntegerOption(
+          propertyFloorsRaw,
+          propertyFloorOptionsForCategory(category),
+        ) ??
         undefined
       : undefined,
     minPrice: minPrice
@@ -192,6 +208,13 @@ export function queryListings(query: ListingQuery): SampleListing[] {
       return false
     }
     if (query.complex && loc.complex !== query.complex) return false
+    if (
+      query.landUse &&
+      classifyLandUse(`${item.title} ${item.description} ${item.meta}`) !==
+        query.landUse
+    ) {
+      return false
+    }
 
     const roomCount = item.roomCount ?? parseLegacyRoomCount(item.rooms)
     if (query.rooms != null && roomCount !== query.rooms) return false
@@ -204,7 +227,11 @@ export function queryListings(query: ListingQuery): SampleListing[] {
       item.propertyFloors ?? legacyFloors.propertyFloors
     if (
       query.propertyFloors != null &&
-      propertyFloors !== query.propertyFloors
+      !matchesPropertyFloorFilter(
+        item.category,
+        propertyFloors,
+        query.propertyFloors,
+      )
     ) {
       return false
     }
@@ -257,6 +284,7 @@ export function buildPropertiesHref(
   const params = new URLSearchParams()
   if (query.category) params.set("type", query.category)
   if (query.deal) params.set("deal", query.deal)
+  if (query.landUse) params.set("landUse", query.landUse)
   if (query.city) params.set("city", query.city)
   if (query.district) params.set("district", query.district)
   if (query.neighborhood) params.set("neighborhood", query.neighborhood)
@@ -281,6 +309,7 @@ export function buildPropertiesHref(
 export function countActiveFilters(query: ListingQuery): number {
   let n = 0
   if (query.deal) n += 1
+  if (query.landUse) n += 1
   if (query.city) n += 1
   if (query.district) n += 1
   if (query.neighborhood) n += 1
@@ -309,6 +338,13 @@ export function activeFilterChips(query: ListingQuery): {
       key: "deal",
       label: dealLabels[query.deal],
       clearHref: without({ deal: undefined }),
+    })
+  }
+  if (query.landUse) {
+    chips.push({
+      key: "landUse",
+      label: LAND_USE_LABELS[query.landUse],
+      clearHref: without({ landUse: undefined }),
     })
   }
   if (query.city) {
@@ -374,7 +410,7 @@ export function activeFilterChips(query: ListingQuery): {
   if (query.propertyFloors != null) {
     chips.push({
       key: "propertyFloors",
-      label: `طوابق العقار ${toEnglishNumber(query.propertyFloors)}`,
+      label: `طوابق العقار: ${formatPropertyFloors(query.propertyFloors, query.category)}`,
       clearHref: without({ propertyFloors: undefined }),
     })
   }

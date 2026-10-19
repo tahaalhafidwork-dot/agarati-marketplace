@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import type { BrowsePageModel } from "@/application/listings/browse-page"
 import { buildPropertiesHref } from "@/lib/listing-query"
+import { LAND_USE_LABELS } from "@/lib/land-uses"
 import { categorySlugs } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
 
@@ -125,6 +126,16 @@ export function PropertiesBrowseView({ model }: { model: BrowsePageModel }) {
             </span>
           </>
         )}
+        {query.landUse ? (
+          <>
+            <span className="mx-1 opacity-60" aria-hidden="true">
+              ›
+            </span>
+            <span className="font-medium text-foreground" aria-current="page">
+              {LAND_USE_LABELS[query.landUse]}
+            </span>
+          </>
+        ) : null}
       </nav>
 
       <ListingsToolbar

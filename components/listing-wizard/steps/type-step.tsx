@@ -7,6 +7,7 @@ import {
   dailyNotAllowedMessage,
 } from "@/lib/listing-form-config"
 import { categoryAllowsDaily } from "@/lib/deals"
+import { LAND_USE_OPTIONS, type LandUse } from "@/lib/land-uses"
 import {
   categoryLabels,
   type DealType,
@@ -17,8 +18,10 @@ import { cn } from "@/lib/utils"
 export type TypeStepProps = {
   category: PropertyCategory | ""
   deal: DealType | ""
+  landUse: LandUse | ""
   onApplyCategory: (value: PropertyCategory) => void
   onDealChange: (value: DealType) => void
+  onLandUseChange: (value: LandUse) => void
   onClearCategory: () => void
   onStepError: (message: string | null) => void
 }
@@ -26,8 +29,10 @@ export type TypeStepProps = {
 export function TypeStep({
   category,
   deal,
+  landUse,
   onApplyCategory,
   onDealChange,
+  onLandUseChange,
   onClearCategory,
   onStepError,
 }: TypeStepProps) {
@@ -78,6 +83,40 @@ export function TypeStep({
           )
         })}
       </div>
+
+      {category === "land" ? (
+        <div>
+          <h2 className="text-base font-semibold text-[#0F2744]">
+            صفة إعمار الأرض
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            اختر الصفة المثبتة للأرض لضمان دقة الإعلان والبحث.
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {LAND_USE_OPTIONS.map((option) => {
+              const selected = landUse === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onLandUseChange(option.value)
+                    onStepError(null)
+                  }}
+                  className={cn(
+                    "rounded-xl border px-3 py-3 text-start text-sm font-semibold transition",
+                    selected
+                      ? "border-[color:var(--brand-gold)] bg-[#faf1e3] text-[#0F2744] shadow-sm"
+                      : "border-border bg-[#fffdf9] text-[#0F2744] hover:border-[color:var(--brand-gold)]/50",
+                  )}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div>
         <h2 className="text-base font-semibold text-[#0F2744]">نوع الصفقة</h2>

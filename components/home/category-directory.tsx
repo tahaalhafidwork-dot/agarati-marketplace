@@ -31,6 +31,11 @@ const CATEGORY_BASE: Omit<CategoryRow, "count" | "subtitle">[] = [
     category: "apartment",
   },
   {
+    label: categoryMenuLabels.land,
+    href: "/categories/lands",
+    category: "land",
+  },
+  {
     label: categoryMenuLabels.house,
     href: "/categories/houses",
     category: "house",
@@ -44,11 +49,6 @@ const CATEGORY_BASE: Omit<CategoryRow, "count" | "subtitle">[] = [
     label: categoryMenuLabels.office,
     href: "/categories/offices",
     category: "office",
-  },
-  {
-    label: categoryMenuLabels.land,
-    href: "/categories/lands",
-    category: "land",
   },
   {
     label: categoryMenuLabels.building,

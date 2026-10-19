@@ -20,6 +20,7 @@ import { categoryToPrisma, dealToPrisma } from "@/lib/listings"
 import { isDealAllowedForCategory, dailyNotAllowedMessage } from "@/lib/deals"
 import { assertListingQuota } from "@/lib/listing-quota"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { encodeLandUseMeta, parseLandUseMeta } from "@/lib/land-uses"
 
 export type { ListingActionState, ContactMethod } from "@/application/listings/commands/types"
 
@@ -110,6 +111,7 @@ export async function createListingAction(
           buildingFloors: data.buildingFloors,
           heating: data.heating,
           furnished: data.furnished,
+          meta: data.landUse ? encodeLandUseMeta(data.landUse) : null,
           citySlug: data.citySlug,
           districtSlug: data.districtSlug,
           neighborhoodSlug: data.neighborhoodSlug,
@@ -161,7 +163,7 @@ export async function updateListingAction(
 
     const existing = await prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, ownerId: true, status: true },
+      select: { id: true, ownerId: true, status: true, meta: true },
     })
     if (!existing || existing.ownerId !== user.id) {
       return { error: "لا يمكنك تعديل هذا الإعلان." }
@@ -213,6 +215,12 @@ export async function updateListingAction(
         buildingFloors: data.buildingFloors,
         heating: data.heating,
         furnished: data.furnished,
+        meta:
+          data.category === "land" && data.landUse
+            ? encodeLandUseMeta(data.landUse)
+            : parseLandUseMeta(existing.meta)
+              ? null
+              : undefined,
         citySlug: data.citySlug,
         districtSlug: data.districtSlug,
         neighborhoodSlug: data.neighborhoodSlug,

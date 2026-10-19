@@ -16,9 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  formatFloorNumber,
+  formatPropertyFloors,
+  propertyFloorOptionsForCategory,
   roomCountOptionsForCategory,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
+import { LAND_USE_OPTIONS, type LandUse } from "@/lib/land-uses"
 import {
   CATEGORY_FIELD_FLAGS,
   dealOptionsForCategory,
@@ -26,7 +30,6 @@ import {
 } from "@/lib/listing-form-config"
 import {
   filterFloorOptions,
-  filterPropertyFloorOptions,
   parseIQD,
 } from "@/lib/listing-query"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
@@ -37,6 +40,7 @@ export const filterDealOptions: DealType[] = ["sale", "rent", "daily"]
 
 export type ListingsFilterDraft = {
   deal?: DealType
+  landUse?: LandUse
   location: LocationFilterValue
   rooms: string
   floor: string
@@ -51,11 +55,13 @@ function NumericFilterSelect({
   label,
   value,
   options,
+  formatOption = toEnglishNumber,
   onChange,
 }: {
   label: string
   value: string
   options: readonly number[]
+  formatOption?: (value: number) => string
   onChange: (value: string) => void
 }) {
   return (
@@ -64,15 +70,24 @@ function NumericFilterSelect({
       onValueChange={(next) => onChange(next === "any" ? "" : (next ?? ""))}
     >
       <SelectTrigger aria-label={label} className="h-11 w-full rounded-xl bg-card">
-        <SelectValue />
+        <SelectValue>
+          {(selectedValue: string | null) =>
+            selectedValue === "any" || selectedValue == null
+              ? "الكل"
+              : formatOption(Number(selectedValue))
+          }
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="any">الكل</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option} value={String(option)}>
-            {toEnglishNumber(option)}
-          </SelectItem>
-        ))}
+        {options.map((option) => {
+          const optionLabel = formatOption(option)
+          return (
+            <SelectItem key={option} value={String(option)}>
+              <span dir="auto">{optionLabel}</span>
+            </SelectItem>
+          )
+        })}
       </SelectContent>
     </Select>
   )
@@ -147,6 +162,33 @@ export function ListingsFilterFields({
         </div>
       </FilterSection>
 
+      {category === "land" ? (
+        <FilterSection title="نوع الأرض">
+          <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="نوع الأرض">
+            {LAND_USE_OPTIONS.map((option) => {
+              const selected = value.landUse === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    patch({ landUse: selected ? undefined : option.value })
+                  }
+                  className={cn(
+                    "rounded-xl border px-2.5 py-2.5 text-xs font-semibold transition-colors last:col-span-2",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        </FilterSection>
+      ) : null}
+
       <FilterSection title="الموقع">
         <LocationFilterFields
           value={value.location}
@@ -177,10 +219,11 @@ export function ListingsFilterFields({
             label="طابق الوحدة"
             value={value.floor}
             options={filterFloorOptions}
+            formatOption={formatFloorNumber}
             onChange={(floor) => patch({ floor })}
           />
           <p className="text-[0.65rem] text-muted-foreground">
-            0 أرضي، والأرقام السالبة للأقبية.
+            «أرضي» للطابق 0، والأرقام السالبة للأقبية.
           </p>
         </FilterSection>
       ) : null}
@@ -190,11 +233,18 @@ export function ListingsFilterFields({
           <NumericFilterSelect
             label="عدد طوابق العقار"
             value={value.propertyFloors}
-            options={filterPropertyFloorOptions}
+            options={propertyFloorOptionsForCategory(category)}
+            formatOption={(floorCount) =>
+              formatPropertyFloors(floorCount, category)
+            }
             onChange={(propertyFloors) => patch({ propertyFloors })}
           />
           <p className="text-[0.65rem] text-muted-foreground">
-            2 دوبلكس، و3 تربلكس.
+            {category === "house" || category === "villa"
+              ? "فلات لطابق واحد، دوبلكس لطابقين، تربلكس لثلاثة، أو أكثر من 3 طوابق."
+              : category === "apartment"
+                ? "فلات لطابق واحد، دوبلكس لطابقين، وتربلكس لثلاثة طوابق."
+                : "اختر عدد الطوابق التي يشغلها العقار نفسه."}
           </p>
         </FilterSection>
       ) : null}
@@ -302,6 +352,7 @@ export function ListingsFilterFields({
 export function draftFromQuery(query: {
   category?: PropertyCategory
   deal?: DealType
+  landUse?: LandUse
   city?: string
   district?: string
   neighborhood?: string
@@ -321,6 +372,7 @@ export function draftFromQuery(query: {
       !isDealAllowedForCategory(query.category, query.deal)
         ? undefined
         : query.deal,
+    landUse: query.category === "land" ? query.landUse : undefined,
     location: {
       city: query.city,
       district: query.district,
@@ -349,6 +401,7 @@ export function draftFromQuery(query: {
 export function emptyFilterDraft(): ListingsFilterDraft {
   return {
     deal: undefined,
+    landUse: undefined,
     location: {},
     rooms: "",
     floor: "",
@@ -368,6 +421,7 @@ export function draftToQueryPatch(draft: ListingsFilterDraft) {
 
   return {
     deal: draft.deal,
+    landUse: draft.landUse,
     city: draft.location.city,
     district: draft.location.district,
     neighborhood: draft.location.neighborhood,

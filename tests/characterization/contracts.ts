@@ -23,9 +23,12 @@ import {
 } from "@/components/search/listings-filter-fields"
 import { dealOptionsForCategory } from "@/lib/deals"
 import {
+  formatFloorNumber,
+  formatPropertyFloors,
   inferLegacyFloorValues,
   normalizeLegacyFurnished,
   parseLegacyRoomCount,
+  propertyFloorOptionsForCategory,
 } from "@/lib/listing-attributes"
 import {
   parseListingForm,
@@ -206,6 +209,38 @@ export function assertNavLocks(): string[] {
 
 export function assertListingFilterContracts(): string[] {
   const errors: string[] = []
+  if (formatFloorNumber(0) !== "أرضي") {
+    errors.push("ground-floor value zero should display as أرضي")
+  }
+  if (
+    formatPropertyFloors(1, "apartment") !== "1 · طابق واحد (فلات)" ||
+    formatPropertyFloors(2, "house") !== "2 · طابقان (دوبلكس)" ||
+    formatPropertyFloors(3, "villa") !== "3 · ثلاثة طوابق (تربلكس)" ||
+    formatPropertyFloors(4, "house") !== "أكثر من 3 طوابق" ||
+    formatPropertyFloors(7, "villa") !== "أكثر من 3 طوابق" ||
+    formatPropertyFloors(2, "building") !== "2 · طابقان" ||
+    formatPropertyFloors(4, "apartment") !== "4 طوابق"
+  ) {
+    errors.push("property-floor values should use numeric, descriptive labels")
+  }
+  if (
+    propertyFloorOptionsForCategory("apartment").at(-1) !== 3 ||
+    propertyFloorOptionsForCategory("house").at(-1) !== 4 ||
+    propertyFloorOptionsForCategory("villa").at(-1) !== 4 ||
+    propertyFloorOptionsForCategory("office").at(-1) !== 5 ||
+    propertyFloorOptionsForCategory("building").at(-1) !== 20
+  ) {
+    errors.push("property-floor options should use realistic category limits")
+  }
+  if (
+    parseQuery({ type: "apartment", propertyFloors: "4" })
+      .propertyFloors != null ||
+    parseQuery({ type: "house", propertyFloors: "4" }).propertyFloors !== 4 ||
+    parseQuery({ type: "house", propertyFloors: "6" }).propertyFloors != null ||
+    parseQuery({ type: "building", propertyFloors: "8" }).propertyFloors !== 8
+  ) {
+    errors.push("URL parsing should enforce category-specific floor limits")
+  }
   const legacyRoomCount = parseLegacyRoomCount("٣+١")
   const legacySingleOffice = parseLegacyRoomCount("مكتب واحد")
   const legacyDoubleOffice = parseLegacyRoomCount("مكتبين")
@@ -234,6 +269,40 @@ export function assertListingFilterContracts(): string[] {
     unsupportedLandQuery.propertyFloors != null
   ) {
     errors.push("URL parsing should discard unsupported land attributes")
+  }
+  const industrialLandQuery = parseQuery({
+    type: "land",
+    deal: "rent",
+    landUse: "industrial",
+  })
+  const industrialLandResults = queryListings(industrialLandQuery)
+  if (
+    industrialLandQuery.landUse !== "industrial" ||
+    !industrialLandResults.some(
+      (listing) => listing.slug === "erbil-land-rent-industrial",
+    ) ||
+    industrialLandResults.some(
+      (listing) => listing.slug === "baghdad-land-alradhwania",
+    )
+  ) {
+    errors.push("land-use URLs should retain and apply the selected land type")
+  }
+  if (
+    parseQuery({ type: "apartment", landUse: "industrial" }).landUse != null ||
+    parseQuery({ type: "land", landUse: "unknown" }).landUse != null
+  ) {
+    errors.push("land-use parsing should reject unrelated or unknown values")
+  }
+  const landUseRoundTrip = parseQuery(
+    Object.fromEntries(
+      new URL(
+        buildPropertiesHref(industrialLandQuery),
+        "https://agarati.test",
+      ).searchParams.entries(),
+    ),
+  )
+  if (landUseRoundTrip.landUse !== "industrial") {
+    errors.push("building a filter URL should preserve the selected land type")
   }
   if (parseQuery({ type: "apartment", rooms: "٠" }).rooms !== 0) {
     errors.push("apartment room filter should preserve studio value zero")
@@ -273,6 +342,28 @@ export function assertListingFilterContracts(): string[] {
   ) {
     errors.push("listing form should persist normalized numeric room and floor data")
   }
+
+  listingForm.set("propertyFloors", "4")
+  const excessiveApartmentFloors = parseListingForm(listingForm)
+  if (
+    excessiveApartmentFloors.propertyFloors != null ||
+    !validateListingFormCore(excessiveApartmentFloors, "create")
+  ) {
+    errors.push("server parser should reject excessive apartment floor counts")
+  }
+  listingForm.set("propertyFloors", "2")
+
+  listingForm.set("category", "house")
+  listingForm.set("propertyFloors", "4")
+  const multiFloorHouse = parseListingForm(listingForm)
+  if (
+    multiFloorHouse.propertyFloors !== 4 ||
+    validateListingFormCore(multiFloorHouse, "create") !== null
+  ) {
+    errors.push("house listings should accept the more-than-three floor bucket")
+  }
+  listingForm.set("category", "apartment")
+  listingForm.set("propertyFloors", "2")
 
   if (
     toEnglishDigits("١۲3") !== "123" ||
@@ -318,6 +409,21 @@ export function assertListingFilterContracts(): string[] {
     forgedLand.buildingFloors != null
   ) {
     errors.push("server parser should discard room and floor fields for land")
+  }
+  if (!validateListingFormCore(forgedLand, "create")) {
+    errors.push("land listings should require a structured land-use value")
+  }
+  listingForm.set("landUse", "agricultural")
+  const validLand = parseListingForm(listingForm)
+  if (
+    validLand.landUse !== "agricultural" ||
+    validateListingFormCore(validLand, "create") !== null
+  ) {
+    errors.push("valid land-use selection should pass server validation")
+  }
+  listingForm.set("landUse", "forged-value")
+  if (!validateListingFormCore(parseListingForm(listingForm), "create")) {
+    errors.push("server validation should reject forged land-use values")
   }
 
   const baseParams = {
@@ -370,6 +476,13 @@ export function assertListingFilterContracts(): string[] {
     whereFilters.title.contains !== "عنكاوا"
   ) {
     errors.push("database where clause should include every selected filter")
+  }
+
+  const houseMoreThanThreeWhere = buildListingWhere(
+    parseQuery({ type: "house", propertyFloors: "4" }),
+  ) as unknown as { propertyFloors: { gte: number } }
+  if (houseMoreThanThreeWhere.propertyFloors.gte !== 4) {
+    errors.push("house floor filtering should treat the fourth option as 4+")
   }
 
   const mismatches: Array<[string, Record<string, string>]> = [
@@ -466,12 +579,14 @@ export function assertListingFilterContracts(): string[] {
   const landDraft = draftFromQuery({
     category: "land",
     deal: "daily",
+    landUse: "agricultural",
     rooms: 3,
     floor: 2,
     propertyFloors: 2,
   })
   if (
     landDraft.deal ||
+    landDraft.landUse !== "agricultural" ||
     landDraft.rooms ||
     landDraft.floor ||
     landDraft.propertyFloors

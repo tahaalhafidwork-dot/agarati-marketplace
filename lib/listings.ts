@@ -21,6 +21,11 @@ import {
   parseLegacyRoomCount,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
+import {
+  classifyLandUse,
+  parseLandUseMeta,
+  type LandUse,
+} from "@/lib/land-uses"
 
 export const categoryToPrisma: Record<PropertyCategory, PrismaCategory> = {
   apartment: "APARTMENT",
@@ -77,6 +82,7 @@ export type PublicListingCard = {
   buildingFloors?: number
   deal: DealType
   category: PropertyCategory
+  landUse?: LandUse
   type: string
   date: string
   image: string
@@ -137,6 +143,13 @@ export function toPublicListingCard(
 ): PublicListingCard {
   const category = prismaToCategory[listing.category]
   const deal = prismaToDeal[listing.deal]
+  const landUse =
+    category === "land"
+      ? parseLandUseMeta(listing.meta) ??
+        classifyLandUse(
+          `${listing.title} ${listing.description} ${listing.meta ?? ""}`,
+        )
+      : undefined
   const complexLabel =
     (listing.complexSlug
       ? opts?.complexLabels?.[listing.complexSlug]
@@ -173,7 +186,7 @@ export function toPublicListingCard(
     floorNumber != null ? formatFloorNumber(floorNumber) : undefined
   const propertyFloorsMeta =
     propertyFloors != null && propertyFloors > 1
-      ? formatPropertyFloors(propertyFloors)
+      ? formatPropertyFloors(propertyFloors, category)
       : null
   const structuredMeta = [
     roomCount != null
@@ -205,6 +218,7 @@ export function toPublicListingCard(
     buildingFloors,
     deal,
     category,
+    landUse,
     type: categoryLabelAr[category],
     date: relativeDateAr(listing.publishedAt ?? listing.createdAt),
     image: imageUrls[0] ?? "/placeholder-listing.svg",

@@ -128,7 +128,9 @@ export default async function AdminPropertyDetailPage({
     {
       label: "عدد طوابق العقار",
       value:
-        propertyFloors == null ? "—" : formatPropertyFloors(propertyFloors),
+        propertyFloors == null
+          ? "—"
+          : formatPropertyFloors(propertyFloors, category),
     },
     {
       label: "إجمالي طوابق المبنى",

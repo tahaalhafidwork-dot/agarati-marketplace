@@ -1,4 +1,5 @@
 import { categoryAllowsDaily } from "@/lib/deals"
+import { LAND_USE_OPTIONS } from "@/lib/land-uses"
 import {
   countFromIndex,
   getPublicListingCountIndex,
@@ -40,6 +41,12 @@ function dealOptions(
   const rent = countFromIndex(index, { category, deal: "rent" })
   const daily = countFromIndex(index, { category, deal: "daily" })
   const withDaily = categoryAllowsDaily(category)
+  const landUseChildren = (deal: "sale" | "rent"): CategoryNode[] =>
+    LAND_USE_OPTIONS.map((option) => ({
+      slug: option.slug,
+      label: option.label,
+      href: `/properties?deal=${deal}&type=land&landUse=${option.value}`,
+    }))
 
   const nodes: CategoryNode[] = [
     {
@@ -52,13 +59,15 @@ function dealOptions(
       slug: "sale",
       label: "للبيع",
       count: toEnglishDigits(sale),
-      href: `/properties?deal=sale&type=${category}`,
+      href: category === "land" ? undefined : `/properties?deal=sale&type=${category}`,
+      children: category === "land" ? landUseChildren("sale") : undefined,
     },
     {
       slug: "rent",
       label: "للإيجار",
       count: toEnglishDigits(rent),
-      href: `/properties?deal=rent&type=${category}`,
+      href: category === "land" ? undefined : `/properties?deal=rent&type=${category}`,
+      children: category === "land" ? landUseChildren("rent") : undefined,
     },
   ]
 
