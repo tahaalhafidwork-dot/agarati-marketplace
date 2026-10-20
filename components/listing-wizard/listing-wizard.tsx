@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeft, ArrowRight, Check } from "lucide-react"
+import { ArrowLeft, ArrowRight, Building2, Check, UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -69,14 +69,25 @@ export type ListingWizardInitial = {
   /** Current listing status — used for rejected resubmit copy */
   status?: "DRAFT" | "PENDING" | "ACTIVE" | "REJECTED" | "EXPIRED"
   moderationNote?: string | null
+  listingOwnership?: "personal" | "agency"
+}
+
+export type AgencyPublishingOption = {
+  agencyName: string
+  role: "OWNER" | "AGENT"
+  subscriptionActive: boolean
+  used: number
+  quota: number
 }
 
 export function NewListingForm({
   initialValues,
   catalogProjects = [],
+  agencyOption,
 }: {
   initialValues?: ListingWizardInitial
   catalogProjects?: CatalogProject[]
+  agencyOption?: AgencyPublishingOption | null
 }) {
   const isEdit = Boolean(initialValues?.listingId)
   const isResubmit = initialValues?.status === "REJECTED"
@@ -146,6 +157,9 @@ export function NewListingForm({
   const [description, setDescription] = useState(
     initialValues?.description ?? ""
   )
+  const [listingOwnership, setListingOwnership] = useState<
+    "personal" | "agency"
+  >(initialValues?.listingOwnership ?? "personal")
   const [stepError, setStepError] = useState<string | null>(null)
   const submitLock = useRef(false)
 
@@ -342,6 +356,7 @@ export function NewListingForm({
       {isEdit && initialValues ? (
         <input type="hidden" name="listingId" value={initialValues.listingId} />
       ) : null}
+      <input type="hidden" name="listingOwnership" value={listingOwnership} />
       <input type="hidden" name="category" value={category} />
       <input type="hidden" name="deal" value={deal} />
       <input
@@ -495,6 +510,58 @@ export function NewListingForm({
           </ol>
         </div>
       </header>
+
+      {!isEdit && agencyOption ? (
+        <section className="rounded-2xl border border-[color:var(--brand-gold)]/30 bg-card p-3 shadow-sm md:p-4">
+          <p className="mb-2 text-sm font-semibold text-[#0F2744]">
+            ملكية الإعلان
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setListingOwnership("personal")}
+              className={cn(
+                "rounded-xl border p-3 text-start transition-colors",
+                listingOwnership === "personal"
+                  ? "border-[#0F2744] bg-[#0F2744]/5"
+                  : "border-border hover:bg-muted/50"
+              )}
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <UserRound className="size-4" /> عقار شخصي
+              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                يبقى منفصلًا عن الوكالة ويخضع لحد الحساب الفردي.
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={
+                !agencyOption.subscriptionActive ||
+                agencyOption.used >= agencyOption.quota
+              }
+              onClick={() => setListingOwnership("agency")}
+              className={cn(
+                "rounded-xl border p-3 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-55",
+                listingOwnership === "agency"
+                  ? "border-[#B8956C] bg-[#B8956C]/10"
+                  : "border-border hover:bg-muted/50"
+              )}
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <Building2 className="size-4" /> عقار الوكالة
+              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {agencyOption.agencyName} · حصتك {agencyOption.used}/
+                {agencyOption.quota}
+                {!agencyOption.subscriptionActive
+                  ? " · الاشتراك غير نشط"
+                  : ""}
+              </span>
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {(state.error || stepError) && (
         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

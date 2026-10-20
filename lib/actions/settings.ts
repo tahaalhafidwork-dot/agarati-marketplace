@@ -15,6 +15,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
+import { ensureAgencyForApprovedOwner } from "@/lib/agency-service"
 
 export type SettingsActionState = {
   error?: string
@@ -385,18 +386,23 @@ export async function reviewAgencyUpgradeAction(
     return { error: "لا يوجد طلب معلّق لهذا المستخدم." }
   }
 
-  await prisma.user.update({
-    where: { id },
-    data:
-      decision === "APPROVED"
-        ? {
-            agencyUpgradeStatus: "APPROVED",
-            accountType: "AGENCY",
-          }
-        : {
-            agencyUpgradeStatus: "REJECTED",
-            accountType: "INDIVIDUAL",
-          },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id },
+      data:
+        decision === "APPROVED"
+          ? {
+              agencyUpgradeStatus: "APPROVED",
+              accountType: "AGENCY",
+            }
+          : {
+              agencyUpgradeStatus: "REJECTED",
+              accountType: "INDIVIDUAL",
+            },
+    })
+    if (decision === "APPROVED") {
+      await ensureAgencyForApprovedOwner(id, tx)
+    }
   })
 
   revalidatePath("/admin/users")

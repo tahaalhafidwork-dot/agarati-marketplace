@@ -6,6 +6,13 @@ export const metadata: Metadata = {
   title: "إنشاء حساب",
 }
 
-export default function RegisterPage() {
-  return <SignupForm />
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>
+}) {
+  const { next } = await searchParams
+  const nextPath =
+    next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard"
+  return <SignupForm nextPath={nextPath} />
 }

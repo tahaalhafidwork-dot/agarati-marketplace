@@ -88,44 +88,111 @@ enum AgencyUpgradeStatus {
   REJECTED
 }
 
+enum AgencyStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+enum AgencyMemberRole {
+  OWNER
+  AGENT
+}
+
+enum AgencyMembershipStatus {
+  ACTIVE
+  LEFT
+}
+
+enum AgencyQuotaMode {
+  EQUAL
+  MANUAL
+}
+
+enum AgencyInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentPurpose {
+  INDIVIDUAL_LISTING
+  AGENCY_SUBSCRIPTION
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ListingBillingKind {
+  PERSONAL_FREE
+  PERSONAL_PAID
+  AGENCY_INCLUDED
+}
+
+enum ListingBillingState {
+  READY
+  PAYMENT_REQUIRED
+  SUBSCRIPTION_REQUIRED
+}
+
 model User {
-  id        String   @id // matches Supabase auth.users.id (UUID)
-  email     String   @unique
-  name      String
-  phone     String?
-  whatsapp  String?
-  role      UserRole @default(LISTER)
-  avatarUrl             String?
-  notifyMessages        Boolean             @default(true)
-  notifyOther           Boolean             @default(true)
-  accountType           AccountType         @default(INDIVIDUAL)
-  agencyUpgradeStatus   AgencyUpgradeStatus @default(NONE)
-  agencyOfficeName      String?
-  agencyLogoUrl         String?
-  agencySocialUrl       String?
-  agencyRequestNote     String?             @db.Text
-  agencyRequestedAt     DateTime?
+  id                     String              @id // matches Supabase auth.users.id (UUID)
+  email                  String              @unique
+  name                   String
+  phone                  String?
+  whatsapp               String?
+  role                   UserRole            @default(LISTER)
+  avatarUrl              String?
+  notifyMessages         Boolean             @default(true)
+  notifyOther            Boolean             @default(true)
+  accountType            AccountType         @default(INDIVIDUAL)
+  agencyUpgradeStatus    AgencyUpgradeStatus @default(NONE)
+  agencyOfficeName       String?
+  agencyLogoUrl          String?
+  agencySocialUrl        String?
+  agencyRequestNote      String?             @db.Text
+  agencyRequestedAt      DateTime?
   /// Public office location (required for agency signup / upgrade)
   agencyCitySlug         String?
   agencyDistrictSlug     String?
   agencyNeighborhoodSlug String?
   agencyAddressLine      String?
   agencyBio              String?             @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
-  listings                 Listing[]
-  favorites                Favorite[]
-  savedSearches            SavedSearch[]
-  contactLeads             ContactLead[] @relation("LeadRecipient")
-  sentMessages             Message[]     @relation("SentMessages")
-  receivedMessages         Message[]     @relation("ReceivedMessages")
-  propertyRequests         PropertyRequest[]
-  propertyRequestMessages  PropertyRequestMessage[] @relation("PropertyRequestMessages")
-  reports                  Report[]
-  agencyProjects           AgencyProject[]
-  createdProjects          Project[]     @relation("ProjectCreator")
-  projectPhotos            ProjectPhoto[]
+  listings                  Listing[]
+  favorites                 Favorite[]
+  savedSearches             SavedSearch[]
+  contactLeads              ContactLead[]            @relation("LeadRecipient")
+  sentMessages              Message[]                @relation("SentMessages")
+  receivedMessages          Message[]                @relation("ReceivedMessages")
+  propertyRequests          PropertyRequest[]
+  propertyRequestMessages   PropertyRequestMessage[] @relation("PropertyRequestMessages")
+  reports                   Report[]
+  agencyProjects            AgencyProject[]
+  createdProjects           Project[]                @relation("ProjectCreator")
+  projectPhotos             ProjectPhoto[]
+  createdAgencies           Agency[]                 @relation("AgencyCreator")
+  agencyMemberships         AgencyMembership[]
+  sentAgencyInvitations     AgencyInvitation[]       @relation("AgencyInvitationSender")
+  receivedAgencyInvitations AgencyInvitation[]       @relation("AgencyInvitationRecipient")
+  assignedAgencyListings    Listing[]                @relation("ListingAssignedAgent")
+  requestedPayments         PaymentRequest[]         @relation("PaymentRequester")
+  approvedPayments          PaymentRequest[]         @relation("PaymentApprover")
 }
 
 model Listing {
@@ -137,56 +204,69 @@ model Listing {
   status      ListingStatus    @default(DRAFT)
 
   /// Price in IQD (integer fils-free whole dinars)
-  priceIqd    Int
-  rooms       String?
+  priceIqd       Int
+  rooms          String?
   /// Normalized room count used by forms and exact filtering.
-  roomCount   Int?
-  areaM2      Int?
-  floor       String?
+  roomCount      Int?
+  areaM2         Int?
+  floor          String?
   /// Unit position inside a building: 0 = ground, negative = basement.
   floorNumber    Int?
   /// Number of levels occupied by the advertised property (2 = duplex).
   propertyFloors Int?
   /// Total floors in the host building for apartments/offices.
   buildingFloors Int?
-  heating     String?
-  furnished  String?
-  meta        String?
+  heating        String?
+  furnished      String?
+  meta           String?
 
-  citySlug         String
-  districtSlug     String
-  neighborhoodSlug String
-  complexSlug      String?
+  citySlug            String
+  districtSlug        String
+  neighborhoodSlug    String
+  complexSlug         String?
   /// Name typed when proposing a new complex (admin may rename before approve)
   proposedComplexName String?
   /// Street / mahalla — shown on public listing detail
-  streetPrivate    String?
-  contactMethod  ContactMethod? @default(CHAT)
-  listingNumber  String?        @unique
+  streetPrivate       String?
+  contactMethod       ContactMethod? @default(CHAT)
+  listingNumber       String?        @unique
   /// Approximate public map coordinates (never exact street GPS)
-  mapLat         Float?
-  mapLng         Float?
+  mapLat              Float?
+  mapLng              Float?
   /// Advertiser-selected amenities / nearby services (Arabic labels)
-  services       String[] @default([])
+  services            String[]       @default([])
   /// Public detail page views (owner analytics)
-  viewCount      Int @default(0)
+  viewCount           Int            @default(0)
 
-  moderationNote    String?
-  publishedAt       DateTime?
-  /// Public visibility window end (typically publishedAt + 90 days)
-  expiresAt         DateTime?
+  moderationNote       String?
+  publishedAt          DateTime?
+  /// Public visibility window end (publishedAt + 60 days per paid/free term)
+  expiresAt            DateTime?
   /// Owner hid from public browse without freeing quota
-  visibilityPaused  Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  visibilityPaused     Boolean             @default(false)
+  /// Billing ownership remains explicit even after an ad expires.
+  billingKind          ListingBillingKind  @default(PERSONAL_FREE)
+  billingState         ListingBillingState @default(READY)
+  /// Set once moderation approves the content; billing may still block publish.
+  moderationApprovedAt DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  /// Non-null means the agency owns the listing; ownerId is the stable agency principal.
+  agencyId        String?
+  agency          Agency? @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  /// Current responsible agent; may be cleared/reassigned after departure.
+  assignedAgentId String?
+  assignedAgent   User?   @relation("ListingAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
 
   images       ListingImage[]
   favorites    Favorite[]
   contactLeads ContactLead[]
   messages     Message[]
+  payments     PaymentRequest[]
 
   @@index([status, createdAt])
   @@index([citySlug, districtSlug])
@@ -195,6 +275,135 @@ model Listing {
   @@index([status, category, floorNumber])
   @@index([status, category, propertyFloors])
   @@index([ownerId])
+  @@index([agencyId, status, expiresAt])
+  @@index([assignedAgentId, status])
+  @@index([ownerId, billingKind, createdAt])
+}
+
+/// A legal/operational office. Users join it through AgencyMembership.
+model Agency {
+  id               String          @id @default(cuid())
+  slug             String          @unique
+  name             String
+  status           AgencyStatus    @default(PENDING)
+  quotaMode        AgencyQuotaMode @default(EQUAL)
+  logoUrl          String?
+  coverUrl         String?
+  bio              String?         @db.Text
+  phone            String?
+  whatsapp         String?
+  websiteUrl       String?
+  instagramUrl     String?
+  facebookUrl      String?
+  citySlug         String?
+  districtSlug     String?
+  neighborhoodSlug String?
+  addressLine      String?
+  mapLat           Float?
+  mapLng           Float?
+  createdById      String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  createdBy     User                 @relation("AgencyCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  memberships   AgencyMembership[]
+  invitations   AgencyInvitation[]
+  subscriptions AgencySubscription[]
+  listings      Listing[]
+  payments      PaymentRequest[]
+
+  @@index([status, name])
+  @@index([citySlug, districtSlug, neighborhoodSlug])
+  @@index([createdById])
+}
+
+model AgencyMembership {
+  id          String                 @id @default(cuid())
+  agencyId    String
+  userId      String
+  role        AgencyMemberRole
+  status      AgencyMembershipStatus @default(ACTIVE)
+  manualQuota Int                    @default(0)
+  joinedAt    DateTime               @default(now())
+  leftAt      DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, userId])
+  @@index([userId, status])
+  @@index([agencyId, status, role])
+}
+
+model AgencyInvitation {
+  id              String                 @id @default(cuid())
+  agencyId        String
+  emailNormalized String
+  invitedUserId   String?
+  invitedById     String
+  tokenHash       String                 @unique
+  status          AgencyInvitationStatus @default(PENDING)
+  manualQuota     Int                    @default(0)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  agency      Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  invitedUser User?  @relation("AgencyInvitationRecipient", fields: [invitedUserId], references: [id], onDelete: SetNull)
+  invitedBy   User   @relation("AgencyInvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, status, createdAt])
+  @@index([emailNormalized, status])
+  @@index([invitedUserId, status])
+}
+
+model AgencySubscription {
+  id        String             @id @default(cuid())
+  agencyId  String
+  paymentId String             @unique
+  status    SubscriptionStatus @default(ACTIVE)
+  priceIqd  Int                @default(40000)
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  agency  Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  payment PaymentRequest @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, status, endsAt])
+}
+
+model PaymentRequest {
+  id                String         @id @default(cuid())
+  idempotencyKey    String         @unique
+  purpose           PaymentPurpose
+  status            PaymentStatus  @default(PENDING)
+  amountIqd         Int
+  listingId         String?
+  agencyId          String?
+  requestedById     String
+  approvedById      String?
+  externalReference String?        @unique
+  rejectionReason   String?
+  approvedAt        DateTime?
+  appliedAt         DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  listing      Listing?            @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  agency       Agency?             @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  requestedBy  User                @relation("PaymentRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy   User?               @relation("PaymentApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  subscription AgencySubscription?
+
+  @@index([status, createdAt])
+  @@index([requestedById, status, createdAt])
+  @@index([listingId, status])
+  @@index([agencyId, status])
 }
 
 model ListingImage {
@@ -257,13 +466,13 @@ model ContactLead {
 }
 
 model Message {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   listingId String
   fromId    String
   toId      String
-  content   String   @db.Text
+  content   String    @db.Text
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   from    User    @relation("SentMessages", fields: [fromId], references: [id], onDelete: Cascade)
@@ -276,25 +485,25 @@ model Message {
 
 /// Seeker «wanted» request — public board for matching listers.
 model PropertyRequest {
-  id          String                @id @default(cuid())
-  userId      String
-  title       String
-  description String                @db.Text
-  category    PropertyCategory?
-  deal        DealType?
-  citySlug    String?
-  districtSlug String?
+  id               String                @id @default(cuid())
+  userId           String
+  title            String
+  description      String                @db.Text
+  category         PropertyCategory?
+  deal             DealType?
+  citySlug         String?
+  districtSlug     String?
   neighborhoodSlug String?
-  rooms       String?
-  minBudgetIqd Int?
-  maxBudgetIqd Int?
-  minAreaM2   Int?
-  maxAreaM2   Int?
-  status      PropertyRequestStatus @default(PENDING)
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  rooms            String?
+  minBudgetIqd     Int?
+  maxBudgetIqd     Int?
+  minAreaM2        Int?
+  maxAreaM2        Int?
+  status           PropertyRequestStatus @default(PENDING)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
-  user     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages PropertyRequestMessage[]
 
   @@index([status, createdAt])
@@ -321,17 +530,17 @@ model PropertyRequestMessage {
 }
 
 model Report {
-  id              String       @id @default(cuid())
-  referenceCode   String       @unique
-  kind            ReportKind
-  status          ReportStatus @default(NEW)
-  description     String       @db.Text
-  listingRef      String?
-  contactEmail    String?
-  contactPhone    String?
-  reporterUserId  String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  referenceCode  String       @unique
+  kind           ReportKind
+  status         ReportStatus @default(NEW)
+  description    String       @db.Text
+  listingRef     String?
+  contactEmail   String?
+  contactPhone   String?
+  reporterUserId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   reporter User? @relation(fields: [reporterUserId], references: [id], onDelete: SetNull)
 
@@ -387,15 +596,15 @@ model Project {
 
 /// Community / contributor photo for a project gallery (admin-moderated).
 model ProjectPhoto {
-  id             String        @id @default(cuid())
-  projectId      String
-  storagePath    String
-  status         ProjectStatus @default(PENDING)
-  contributorId  String?
+  id              String        @id @default(cuid())
+  projectId       String
+  storagePath     String
+  status          ProjectStatus @default(PENDING)
+  contributorId   String?
   /// Snapshot of display name at contribution time
   contributorName String
-  reviewedAt     DateTime?
-  createdAt      DateTime      @default(now())
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
 
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   contributor User?   @relation(fields: [contributorId], references: [id], onDelete: SetNull)
@@ -406,11 +615,11 @@ model ProjectPhoto {
 
 /// Agency authorized to market a project (sales desk).
 model AgencyProject {
-  userId    String
-  projectId String
-  createdAt DateTime @default(now())
+  userId              String
+  projectId           String
+  createdAt           DateTime @default(now())
   /// Reserved: official sales center after admin verification (not self-serve yet).
-  isOfficialSalesDesk Boolean @default(false)
+  isOfficialSalesDesk Boolean  @default(false)
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

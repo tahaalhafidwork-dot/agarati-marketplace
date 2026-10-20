@@ -70,6 +70,9 @@ export function advertiserKindLabel(kind: AdvertiserKind): string {
 }
 
 export function advertiserHref(slug: string): string {
+  if (slug.startsWith("agency:")) {
+    return `/agencies/${encodeURIComponent(slug.slice("agency:".length))}`
+  }
   return `/advertisers/${encodeURIComponent(slug)}`
 }
 

@@ -352,6 +352,7 @@ export async function fetchPublicListings(
           take: 1,
         },
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
       },
       orderBy: orderByForQuery(query.sort),
       take,
@@ -423,6 +424,7 @@ export async function fetchListingById(
       include: {
         images: true,
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
       },
     })
     if (row) {
@@ -475,10 +477,15 @@ export async function fetchListingsByAdvertiser(
 
     await expireOverdueListings({ ownerId: owner.id })
     const rows = await prisma.listing.findMany({
-      where: { ownerId: owner.id, ...publicListingVisibilityWhere() },
+      where: {
+        ownerId: owner.id,
+        agencyId: null,
+        ...publicListingVisibilityWhere(),
+      },
       include: {
         images: true,
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
       },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take: PAGE_SIZE,
@@ -499,5 +506,33 @@ export async function fetchListingsByAdvertiser(
     }
   } catch {
     return { advertiser: null, listings: [] }
+  }
+}
+
+export async function fetchListingsByAgency(
+  agencyId: string,
+  assignedAgentId?: string
+): Promise<PublicListingCard[]> {
+  if (!isDatabaseConfigured() || !(await isDatabaseReachable())) return []
+  try {
+    await expireOverdueListings()
+    const rows = await prisma.listing.findMany({
+      where: {
+        agencyId,
+        ...(assignedAgentId ? { assignedAgentId } : {}),
+        ...publicListingVisibilityWhere(),
+      },
+      include: {
+        images: true,
+        owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      take: PAGE_SIZE,
+    })
+    const labels = await complexLabelsForRows(rows)
+    return rows.map((row) => toPublicListingCard(row, { complexLabels: labels }))
+  } catch {
+    return []
   }
 }

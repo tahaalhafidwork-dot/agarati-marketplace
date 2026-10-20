@@ -17,6 +17,10 @@ export type AuthActionState = {
   success?: string
 }
 
+function safeInternalPath(value: string, fallback = "/dashboard") {
+  return value.startsWith("/") && !value.startsWith("//") ? value : fallback
+}
+
 export async function signUpAction(
   _prev: AuthActionState,
   formData: FormData
@@ -33,6 +37,8 @@ export async function signUpAction(
   const password = String(formData.get("password") ?? "")
   const phone = String(formData.get("phone") ?? "").trim() || null
   const accountKind = String(formData.get("accountKind") ?? "individual").trim()
+  const requestedNext = String(formData.get("next") ?? "/dashboard")
+  const next = safeInternalPath(requestedNext)
   const officeName = String(formData.get("officeName") ?? "").trim()
   const agencyNote = String(formData.get("agencyNote") ?? "").trim() || null
   const socialRaw = String(formData.get("agencySocialUrl") ?? "").trim()
@@ -120,7 +126,7 @@ export async function signUpAction(
   redirect(
     asAgency
       ? "/dashboard/settings?agency=pending"
-      : "/dashboard"
+      : next
   )
 }
 
@@ -154,7 +160,7 @@ export async function signInAction(
     })
   }
 
-  redirect(next.startsWith("/") ? next : "/dashboard")
+  redirect(safeInternalPath(next))
 }
 
 export async function signOutAction() {

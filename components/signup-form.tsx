@@ -27,8 +27,9 @@ const initial: AuthActionState = {}
 
 export function SignupForm({
   className,
+  nextPath = "/dashboard",
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { nextPath?: string }) {
   const [state, action, pending] = useActionState(signUpAction, initial)
   const [accountKind, setAccountKind] = useState<"individual" | "agency">(
     "individual"
@@ -46,6 +47,7 @@ export function SignupForm({
         <CardContent>
           <form action={action}>
             <input type="hidden" name="accountKind" value={accountKind} />
+            <input type="hidden" name="next" value={nextPath} />
             <FieldGroup>
               <Field>
                 <FieldLabel>نوع الحساب</FieldLabel>

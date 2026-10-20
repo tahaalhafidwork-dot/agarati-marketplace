@@ -5,10 +5,20 @@ import { revalidatePath } from "next/cache"
 import { requireAdmin, requireSessionUser } from "@/lib/auth"
 import { isDatabaseConfigured, prisma } from "@/lib/db"
 import {
-  assertListingQuota,
   computeExpiresAt,
   expireOverdueListings,
+  publicListingVisibilityWhere,
 } from "@/lib/listing-quota"
+import {
+  assertAgencyPublishingCapacity,
+  canManageAgencyListing,
+  hasActiveAgencySubscription,
+} from "@/lib/agency-service"
+import {
+  CAPACITY_STATUSES,
+  INDIVIDUAL_ACTIVE_LISTING_LIMIT,
+} from "@/lib/billing-policy"
+import { requestIndividualListingPayment } from "@/lib/payment-service"
 
 export async function recordListingViewAction(listingId: string) {
   if (!isDatabaseConfigured()) return
@@ -17,8 +27,7 @@ export async function recordListingViewAction(listingId: string) {
     await prisma.listing.update({
       where: {
         id: listingId,
-        status: "ACTIVE",
-        visibilityPaused: false,
+        ...publicListingVisibilityWhere(),
       },
       data: { viewCount: { increment: 1 } },
     })
@@ -185,6 +194,12 @@ export async function moderateListingAction(
       complexSlug: true,
       proposedComplexName: true,
       citySlug: true,
+      ownerId: true,
+      agencyId: true,
+      assignedAgentId: true,
+      billingKind: true,
+      billingState: true,
+      expiresAt: true,
     },
   })
   if (!listing) throw new Error("NOT_FOUND")
@@ -215,27 +230,79 @@ export async function moderateListingAction(
   )
 
   const now = new Date()
-  await prisma.listing.update({
-    where: { id: listingId },
-    data:
-      decision === "ACTIVE"
-        ? {
-            status: "ACTIVE",
-            moderationNote: opts.note || null,
-            publishedAt: now,
-            expiresAt: computeExpiresAt(now),
-            visibilityPaused: false,
-            proposedComplexName: null,
-            complexSlug: finalComplexSlug,
-          }
-        : {
-            status: "REJECTED",
-            moderationNote: opts.note || "مرفوض من الإدارة",
-            publishedAt: null,
-            expiresAt: null,
-            proposedComplexName: null,
-            complexSlug: finalComplexSlug,
+  const approvedExpiresAt =
+    listing.expiresAt && listing.expiresAt > now
+      ? listing.expiresAt
+      : computeExpiresAt(now)
+  await prisma.$transaction(async (tx) => {
+    let canActivate = decision === "ACTIVE"
+    let blockedBillingState:
+      | "PAYMENT_REQUIRED"
+      | "SUBSCRIPTION_REQUIRED"
+      | null = null
+
+    if (decision === "ACTIVE" && listing.agencyId) {
+      if (!(await hasActiveAgencySubscription(listing.agencyId, now, tx))) {
+        canActivate = false
+        blockedBillingState = "SUBSCRIPTION_REQUIRED"
+      } else {
+        await assertAgencyPublishingCapacity(tx, {
+          agencyId: listing.agencyId,
+          userId: listing.assignedAgentId ?? listing.ownerId,
+          excludeListingId: listing.id,
+          now,
+        })
+      }
+    } else if (decision === "ACTIVE") {
+      if (
+        listing.billingKind === "PERSONAL_PAID" &&
+        listing.billingState !== "READY"
+      ) {
+        canActivate = false
+        blockedBillingState = "PAYMENT_REQUIRED"
+      } else {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`personal-capacity:${listing.ownerId}`}, 0))`
+        const used = await tx.listing.count({
+          where: {
+            ownerId: listing.ownerId,
+            agencyId: null,
+            id: { not: listing.id },
+            status: { in: [...CAPACITY_STATUSES] },
           },
+        })
+        if (used >= INDIVIDUAL_ACTIVE_LISTING_LIMIT) {
+          throw new Error("INDIVIDUAL_LISTING_LIMIT_REACHED")
+        }
+      }
+    }
+
+    return tx.listing.update({
+      where: { id: listingId },
+      data:
+        decision === "ACTIVE"
+          ? {
+              status: canActivate ? "ACTIVE" : "PENDING",
+              moderationNote: opts.note || null,
+              moderationApprovedAt: now,
+              billingState: blockedBillingState ?? "READY",
+              assignedAgentId: listing.agencyId
+                ? listing.assignedAgentId ?? listing.ownerId
+                : undefined,
+              publishedAt: canActivate ? now : null,
+              expiresAt: canActivate ? approvedExpiresAt : listing.expiresAt,
+              visibilityPaused: false,
+              proposedComplexName: null,
+              complexSlug: finalComplexSlug,
+            }
+          : {
+              status: "REJECTED",
+              moderationApprovedAt: null,
+              moderationNote: opts.note || "مرفوض من الإدارة",
+              publishedAt: null,
+              proposedComplexName: null,
+              complexSlug: finalComplexSlug,
+            },
+    })
   })
 
   revalidatePath("/admin/properties")
@@ -250,7 +317,13 @@ export async function deleteListingAction(listingId: string) {
   const user = await requireSessionUser()
   const listing = await prisma.listing.findUnique({ where: { id: listingId } })
   if (!listing) return
-  if (listing.ownerId !== user.id && user.role !== "ADMIN") {
+  const managesAgency = await canManageAgencyListing(user.id, listing)
+  const ownsPersonal = !listing.agencyId && listing.ownerId === user.id
+  if (
+    !ownsPersonal &&
+    !managesAgency &&
+    user.role !== "ADMIN"
+  ) {
     throw new Error("FORBIDDEN")
   }
   await prisma.listing.delete({ where: { id: listingId } })
@@ -271,11 +344,22 @@ export async function toggleListingVisibilityAction(listingId: string) {
     select: {
       id: true,
       ownerId: true,
+      agencyId: true,
+      assignedAgentId: true,
       status: true,
       visibilityPaused: true,
     },
   })
-  if (!listing || listing.ownerId !== user.id) {
+  const managesAgency = listing
+    ? await canManageAgencyListing(user.id, listing)
+    : false
+  const ownsPersonal = Boolean(
+    listing && !listing.agencyId && listing.ownerId === user.id
+  )
+  if (
+    !listing ||
+    (!ownsPersonal && !managesAgency)
+  ) {
     throw new Error("FORBIDDEN")
   }
   if (listing.status !== "ACTIVE") {
@@ -293,41 +377,85 @@ export async function toggleListingVisibilityAction(listingId: string) {
   revalidatePath("/")
 }
 
-/** Republish an EXPIRED listing for another 90 days if quota allows. */
+/** Renew an expired listing according to its immutable billing owner. */
 export async function republishListingAction(listingId: string) {
   const user = await requireSessionUser()
   if (!isDatabaseConfigured()) throw new Error("DB not configured")
 
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
-    select: { id: true, ownerId: true, status: true },
+    select: {
+      id: true,
+      ownerId: true,
+      agencyId: true,
+      assignedAgentId: true,
+      status: true,
+      billingKind: true,
+      moderationApprovedAt: true,
+    },
   })
-  if (!listing || listing.ownerId !== user.id) {
+  const managesAgency = listing
+    ? await canManageAgencyListing(user.id, listing)
+    : false
+  const ownsPersonal = Boolean(
+    listing && !listing.agencyId && listing.ownerId === user.id
+  )
+  if (
+    !listing ||
+    (!ownsPersonal && !managesAgency)
+  ) {
     throw new Error("FORBIDDEN")
   }
   if (listing.status !== "EXPIRED") {
     throw new Error("ONLY_EXPIRED")
   }
 
-  const quota = await assertListingQuota(user.id, {
-    accountType: user.accountType,
-    agencyUpgradeStatus: user.agencyUpgradeStatus,
-  })
-  if (!quota.ok) {
-    throw new Error(quota.error)
+  if (listing.billingKind === "PERSONAL_PAID") {
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { billingState: "PAYMENT_REQUIRED" },
+    })
+    await requestIndividualListingPayment(user.id, listing.id)
+  } else {
+    const now = new Date()
+    await prisma.$transaction(async (tx) => {
+      if (listing.agencyId) {
+        await assertAgencyPublishingCapacity(tx, {
+          agencyId: listing.agencyId,
+          userId: listing.assignedAgentId ?? user.id,
+          excludeListingId: listing.id,
+          now,
+        })
+      } else {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`personal-capacity:${listing.ownerId}`}, 0))`
+        const used = await tx.listing.count({
+          where: {
+            ownerId: listing.ownerId,
+            agencyId: null,
+            id: { not: listing.id },
+            status: { in: [...CAPACITY_STATUSES] },
+          },
+        })
+        if (used >= INDIVIDUAL_ACTIVE_LISTING_LIMIT) {
+          throw new Error("INDIVIDUAL_LISTING_LIMIT_REACHED")
+        }
+      }
+      await tx.listing.update({
+        where: { id: listing.id },
+        data: {
+          status: "ACTIVE",
+          billingState: "READY",
+          assignedAgentId:
+            listing.agencyId && !listing.assignedAgentId ? user.id : undefined,
+          moderationApprovedAt: listing.moderationApprovedAt ?? now,
+          publishedAt: now,
+          expiresAt: computeExpiresAt(now),
+          visibilityPaused: false,
+          moderationNote: null,
+        },
+      })
+    })
   }
-
-  const now = new Date()
-  await prisma.listing.update({
-    where: { id: listingId },
-    data: {
-      status: "ACTIVE",
-      publishedAt: now,
-      expiresAt: computeExpiresAt(now),
-      visibilityPaused: false,
-      moderationNote: null,
-    },
-  })
 
   revalidatePath("/dashboard/properties")
   revalidatePath(`/properties/${listingId}`)

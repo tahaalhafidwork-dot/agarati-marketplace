@@ -71,6 +71,7 @@ export default async function AdminUsersPage() {
           agencyDistrictSlug: u.agencyDistrictSlug,
           agencyNeighborhoodSlug: u.agencyNeighborhoodSlug,
           agencyRequestNote: u.agencyRequestNote,
+          agencyMembership: u.agencyMemberships[0] ?? null,
         }))}
       />
     </div>

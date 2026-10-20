@@ -24,6 +24,9 @@ import {
 import { prismaToDeal, formatPriceIqd } from "@/lib/listings"
 import { listingImagePublicUrl } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
+import { getActiveAgencyMembership } from "@/lib/agency-service"
+import { reassignAgencyListingAction } from "@/lib/actions/agency"
+import { requestListingPaymentAction } from "@/lib/actions/payments"
 
 export const metadata: Metadata = {
   title: "عقاراتي",
@@ -39,20 +42,52 @@ export default async function MyPropertiesPage({
   const sp = searchParams ? await searchParams : {}
   const noticeRaw = Array.isArray(sp.notice) ? sp.notice[0] : sp.notice
   const user = await getSessionUser()
+  const membership = user && isDatabaseConfigured()
+    ? await getActiveAgencyMembership(user.id)
+    : null
 
   if (user && isDatabaseConfigured()) {
-    await expireOverdueListings({ ownerId: user.id })
+    await Promise.all([
+      expireOverdueListings({ ownerId: user.id }),
+      membership
+        ? expireOverdueListings({ agencyId: membership.agencyId })
+        : Promise.resolve(0),
+    ])
   }
 
   const listings =
     user && isDatabaseConfigured()
       ? await prisma.listing.findMany({
-          where: { ownerId: user.id },
+          where: {
+            OR: [
+              { ownerId: user.id, agencyId: null },
+              ...(membership
+                ? membership.role === "OWNER"
+                  ? [{ agencyId: membership.agencyId }]
+                  : [{ agencyId: membership.agencyId, assignedAgentId: user.id }]
+                : []),
+            ],
+          },
           orderBy: { updatedAt: "desc" },
           include: {
             images: { orderBy: { sortOrder: "asc" }, take: 1 },
             _count: { select: { favorites: true } },
+            agency: { select: { name: true } },
+            assignedAgent: { select: { name: true } },
+            payments: {
+              where: { status: "PENDING" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
           },
+        })
+      : []
+  const agencyMembers =
+    membership?.role === "OWNER"
+      ? await prisma.agencyMembership.findMany({
+          where: { agencyId: membership.agencyId, status: "ACTIVE" },
+          select: { userId: true, user: { select: { name: true } } },
+          orderBy: { joinedAt: "asc" },
         })
       : []
 
@@ -65,6 +100,7 @@ export default async function MyPropertiesPage({
   const quotaUsed =
     user && isDatabaseConfigured() ? await countQuotaListings(user.id) : 0
   const quotaFull = quotaUsed >= quotaLimit
+  const canCreate = !quotaFull || Boolean(membership)
 
   const statusLabel: Record<string, string> = {
     DRAFT: "مسودة",
@@ -97,7 +133,7 @@ export default async function MyPropertiesPage({
             إدارة إعلاناتك المنشورة وقيد المراجعة
           </p>
         </div>
-        {quotaFull ? (
+        {!canCreate ? (
           <span
             className={cn(
               buttonVariants({ size: "sm", variant: "outline" }),
@@ -127,9 +163,7 @@ export default async function MyPropertiesPage({
               </span>
               <span className="ms-1.5 text-xs text-muted-foreground">
                 (
-                {quotaLimit >= 12
-                  ? "وكالة — حتى 12 إعلاناً"
-                  : "فردي — حتى 3 إعلانات"}
+                فردي — الإعلان الأول مجاني دائمًا، والثاني والثالث مدفوعان
                 )
               </span>
             </p>
@@ -234,6 +268,26 @@ export default async function MyPropertiesPage({
                             {remainingLabel}
                           </p>
                         ) : null}
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          <Badge variant="outline" className="text-[0.65rem]">
+                            {item.agencyId
+                              ? `الوكالة · ${item.agency?.name ?? ""}`
+                              : item.billingKind === "PERSONAL_FREE"
+                                ? "الإعلان المجاني"
+                                : "إعلان مدفوع · 5,000 د.ع"}
+                          </Badge>
+                          {item.billingState === "PAYMENT_REQUIRED" ? (
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[0.65rem] text-amber-800">
+                              {item.payments.length ? "الدفع قيد المراجعة" : "الدفع مطلوب"}
+                            </Badge>
+                          ) : null}
+                          {item.billingState === "SUBSCRIPTION_REQUIRED" ? (
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[0.65rem] text-amber-800">اشتراك الوكالة مطلوب</Badge>
+                          ) : null}
+                          {item.agencyId && item.assignedAgent ? (
+                            <Badge variant="secondary" className="text-[0.65rem]">المسؤول: {item.assignedAgent.name}</Badge>
+                          ) : null}
+                        </div>
                         {item.status === "REJECTED" ? (
                           <p className="mt-1.5 text-[0.7rem] leading-5 text-[#6B6560]">
                             {item.moderationNote &&
@@ -274,6 +328,38 @@ export default async function MyPropertiesPage({
                 </div>
 
                 <div className="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
+                  {!item.agencyId &&
+                  item.billingKind === "PERSONAL_PAID" &&
+                  item.billingState === "PAYMENT_REQUIRED" &&
+                  item.payments.length === 0 ? (
+                    <form action={requestListingPaymentAction}>
+                      <input type="hidden" name="listingId" value={item.id} />
+                      <button type="submit" className="h-7 rounded-lg bg-[#0F2744] px-2.5 text-xs font-medium text-white hover:bg-[#0F2744]/90">
+                        طلب اعتماد 5,000 د.ع
+                      </button>
+                    </form>
+                  ) : null}
+                  {item.agencyId && membership?.role === "OWNER" ? (
+                    <form action={reassignAgencyListingAction} className="flex items-center gap-1.5">
+                      <input type="hidden" name="listingId" value={item.id} />
+                      <select
+                        name="assigneeUserId"
+                        defaultValue={item.assignedAgentId ?? ""}
+                        className="h-7 rounded-lg border border-input bg-background px-2 text-xs"
+                        aria-label="مسؤول العقار"
+                      >
+                        <option value="">بلا مسؤول</option>
+                        {agencyMembers.map((member) => (
+                          <option key={member.userId} value={member.userId}>
+                            {member.user.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="h-7 rounded-lg border border-border px-2 text-xs hover:bg-muted">
+                        تعيين
+                      </button>
+                    </form>
+                  ) : null}
                   {item.status === "REJECTED" ? (
                     <Link
                       href={`/dashboard/properties/${item.id}/edit`}
