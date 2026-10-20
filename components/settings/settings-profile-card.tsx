@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  ACCOUNT_IDENTITY_LABELS,
+  resolveAccountIdentity,
+} from "@/lib/account-identity"
 import type { SessionUser } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
@@ -11,14 +15,18 @@ function initials(name: string) {
   return name.slice(0, 1) || "?"
 }
 
-const accountLabel: Record<string, string> = {
-  INDIVIDUAL: "حساب فردي",
-  AGENCY: "وكيل عقاري — تجاري",
-}
-
-export function SettingsProfileCard({ user }: { user: SessionUser }) {
-  const isAgency =
-    user.accountType === "AGENCY" || user.agencyUpgradeStatus === "APPROVED"
+export function SettingsProfileCard({
+  user,
+  agencyMembership,
+}: {
+  user: SessionUser
+  agencyMembership?: { role: "OWNER" | "AGENT" } | null
+}) {
+  const identity = resolveAccountIdentity({
+    accountType: user.accountType,
+    agencyMembershipRole: agencyMembership?.role,
+  })
+  const isCommercial = identity === "AGENCY"
 
   return (
     <div
@@ -50,13 +58,20 @@ export function SettingsProfileCard({ user }: { user: SessionUser }) {
           <Badge
             className={cn(
               "rounded-md text-[0.65rem]",
-              isAgency
+              isCommercial
                 ? "bg-[color:var(--brand-gold)]/20 text-[#0F2744]"
                 : "bg-[#0F2744]/8 text-[#0F2744]"
             )}
           >
-            {isAgency ? accountLabel.AGENCY : accountLabel.INDIVIDUAL}
+            {identity === "AGENT"
+              ? "حساب فردي · وكيل"
+              : ACCOUNT_IDENTITY_LABELS[identity]}
           </Badge>
+          {user.role === "ADMIN" ? (
+            <Badge className="ms-1 rounded-md bg-[#0F2744] text-[0.65rem] text-[color:var(--brand-gold)]">
+              مدير النظام
+            </Badge>
+          ) : null}
         </div>
       </div>
     </div>

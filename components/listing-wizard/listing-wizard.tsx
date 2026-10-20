@@ -12,6 +12,7 @@ import {
 } from "@/lib/actions/listings"
 import {
   CATEGORY_FIELD_FLAGS,
+  categoryAllowsComplex,
   dailyNotAllowedMessage,
   isDealAllowedForCategory,
   LISTING_WIZARD_STEPS,
@@ -27,6 +28,7 @@ import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { categoryLabels, dealLabels } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
 import { namesLikelySame } from "@/lib/complex-options"
+import { airConditioningCodeFromStored } from "@/lib/air-conditioning"
 
 import { DetailsStep } from "./steps/details-step"
 import { LocationStep, type CatalogProject } from "./steps/location-step"
@@ -119,7 +121,9 @@ export function NewListingForm({
   const [buildingFloors, setBuildingFloors] = useState(
     initialValues?.buildingFloors ?? ""
   )
-  const [heating, setHeating] = useState(initialValues?.heating ?? "")
+  const [heating, setHeating] = useState(
+    airConditioningCodeFromStored(initialValues?.heating) ?? ""
+  )
   const [furnished, setFurnished] = useState(initialValues?.furnished ?? "")
   const [services, setServices] = useState<string[]>(
     initialValues?.services ?? []
@@ -130,15 +134,22 @@ export function NewListingForm({
   const [neighborhood, setNeighborhood] = useState(
     initialValues?.neighborhood ?? ""
   )
-  const [complex, setComplex] = useState(initialValues?.complex ?? "")
+  const initialAllowsComplex = categoryAllowsComplex(
+    initialValues?.category ?? ""
+  )
+  const [complex, setComplex] = useState(
+    initialAllowsComplex ? initialValues?.complex ?? "" : ""
+  )
   const [proposedComplexName, setProposedComplexName] = useState(
-    initialValues?.proposedComplexName ?? ""
+    initialAllowsComplex ? initialValues?.proposedComplexName ?? "" : ""
   )
   const [inComplex, setInComplex] = useState(
-    Boolean(initialValues?.complex || initialValues?.proposedComplexName)
+    initialAllowsComplex &&
+      Boolean(initialValues?.complex || initialValues?.proposedComplexName)
   )
   const [proposingNew, setProposingNew] = useState(
-    Boolean(initialValues?.proposedComplexName && !initialValues?.complex)
+    initialAllowsComplex &&
+      Boolean(initialValues?.proposedComplexName && !initialValues?.complex)
   )
   const [streetPrivate, setStreetPrivate] = useState(
     initialValues?.streetPrivate ?? ""
@@ -190,7 +201,15 @@ export function NewListingForm({
     if (!f.heating) setHeating("")
     if (!f.furnished) setFurnished("")
     if (!f.services) setServices([])
+    if (!categoryAllowsComplex(value)) {
+      setInComplex(false)
+      setComplex("")
+      setProposedComplexName("")
+      setProposingNew(false)
+    }
   }
+
+  const complexAllowed = categoryAllowsComplex(category)
 
   const preview =
     city && district && neighborhood
@@ -198,7 +217,7 @@ export function NewListingForm({
           city,
           district,
           neighborhood,
-          complex: complex || undefined,
+          complex: complexAllowed && inComplex ? complex || undefined : undefined,
           street: streetPrivate.trim() || undefined,
         })
       : null
@@ -256,6 +275,10 @@ export function NewListingForm({
         setStepError("اختر إجمالي طوابق المبنى.")
         return
       }
+      if (flags.heating && heating === "") {
+        setStepError("اختر نظام التكييف.")
+        return
+      }
       if (flags.furnished && furnished === "") {
         setStepError("اختر حالة الأثاث.")
         return
@@ -285,7 +308,7 @@ export function NewListingForm({
         setStepError("أكمل المدينة والقضاء والحي.")
         return
       }
-      if (inComplex) {
+      if (complexAllowed && inComplex) {
         if (proposingNew) {
           const name = proposedComplexName.trim()
           if (name.length < 2) {
@@ -399,17 +422,19 @@ export function NewListingForm({
       <input
         type="hidden"
         name="inComplex"
-        value={inComplex ? "1" : "0"}
+        value={complexAllowed && inComplex ? "1" : "0"}
       />
       <input
         type="hidden"
         name="complex"
-        value={inComplex && !proposingNew ? complex : ""}
+        value={complexAllowed && inComplex && !proposingNew ? complex : ""}
       />
       <input
         type="hidden"
         name="proposedComplexName"
-        value={inComplex && proposingNew ? proposedComplexName : ""}
+        value={
+          complexAllowed && inComplex && proposingNew ? proposedComplexName : ""
+        }
       />
       <input type="hidden" name="streetPrivate" value={streetPrivate} />
       <input type="hidden" name="mapLat" value={mapPin?.lat ?? ""} />
@@ -630,6 +655,7 @@ export function NewListingForm({
             districts={districts}
             neighborhoods={neighborhoods}
             catalogProjects={catalogProjects}
+            showComplexOption={complexAllowed}
             onCityChange={setCity}
             onDistrictChange={setDistrict}
             onNeighborhoodChange={setNeighborhood}

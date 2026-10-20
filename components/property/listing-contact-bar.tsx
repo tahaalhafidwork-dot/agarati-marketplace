@@ -33,6 +33,8 @@ export function ListingContactBar({
   ownerName,
   ownerSlug,
   ownerKind,
+  representativeName,
+  representativeRole,
   phone,
   whatsapp,
   favorited,
@@ -45,6 +47,8 @@ export function ListingContactBar({
   ownerName?: string | null
   ownerSlug?: string | null
   ownerKind?: AdvertiserKind | null
+  representativeName?: string | null
+  representativeRole?: "OWNER" | "AGENT" | null
   phone?: string | null
   whatsapp?: string | null
   favorited?: boolean
@@ -148,6 +152,8 @@ export function ListingContactBar({
             name={ownerName}
             slug={ownerSlug}
             kind={ownerKind}
+            representativeName={representativeName}
+            representativeRole={representativeRole}
             isDemo={isDemo}
             compact
             showAvatar={false}

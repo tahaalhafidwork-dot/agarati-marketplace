@@ -41,12 +41,19 @@ function dealOptions(
   const rent = countFromIndex(index, { category, deal: "rent" })
   const daily = countFromIndex(index, { category, deal: "daily" })
   const withDaily = categoryAllowsDaily(category)
-  const landUseChildren = (deal: "sale" | "rent"): CategoryNode[] =>
-    LAND_USE_OPTIONS.map((option) => ({
+  const landUseChildren = (deal: "sale" | "rent"): CategoryNode[] => [
+    {
+      slug: "all",
+      label: "كل الأراضي",
+      count: toEnglishDigits(deal === "sale" ? sale : rent),
+      href: `/properties?deal=${deal}&type=land`,
+    },
+    ...LAND_USE_OPTIONS.map((option) => ({
       slug: option.slug,
       label: option.label,
       href: `/properties?deal=${deal}&type=land&landUse=${option.value}`,
-    }))
+    })),
+  ]
 
   const nodes: CategoryNode[] = [
     {

@@ -20,6 +20,7 @@ import {
   roomCountOptionsForCategory,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
+import { AIR_CONDITIONING_OPTIONS } from "@/lib/air-conditioning"
 import {
   DEAL_OPTIONS,
   type CategoryFieldFlags,
@@ -250,13 +251,22 @@ export function DetailsStep({
         ) : null}
         {flags.heating ? (
           <div className="space-y-2">
-            <Label htmlFor="heatUi">التدفئة</Label>
-            <Input
-              id="heatUi"
+            <Label htmlFor="heatUi">نظام التكييف *</Label>
+            <Select
               value={heating}
-              onChange={(e) => onHeatingChange(e.target.value)}
-              placeholder="مركزي"
-            />
+              onValueChange={(value) => onHeatingChange(value ?? "")}
+            >
+              <SelectTrigger id="heatUi" className="h-10 w-full bg-white">
+                <SelectValue placeholder="اختر نظام التكييف" />
+              </SelectTrigger>
+              <SelectContent>
+                {AIR_CONDITIONING_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ) : null}
         {flags.furnished ? (

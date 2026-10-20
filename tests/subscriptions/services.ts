@@ -4,12 +4,16 @@ import { PrismaClient } from "@prisma/client"
 import {
   assertAgencyPublishingCapacity,
   canManageAgencyListing,
+  ensureAgencyForApprovedOwner,
 } from "../../lib/agency-service"
 import {
   acceptAgencyInvitation,
+  acceptAgencyInvitationById,
   createAgencyInvitation,
   leaveAgency,
 } from "../../lib/agency-membership-service"
+import { countUnreadMessages } from "../../application/listings/messages/count-unread"
+import { toPublicListingCard } from "../../lib/listings"
 import {
   approvePaymentRequest,
   requestAgencySubscriptionPayment,
@@ -30,6 +34,9 @@ const ids = {
   owner: `svc-owner-${suffix}`,
   agent: `svc-agent-${suffix}`,
   invitee: `svc-invitee-${suffix}`,
+  inboxInvitee: `svc-inbox-invitee-${suffix}`,
+  commercialInvitee: `svc-commercial-invitee-${suffix}`,
+  pendingInvitee: `svc-pending-invitee-${suffix}`,
   admin: `svc-admin-${suffix}`,
   agency: `svc-agency-${suffix}`,
 }
@@ -47,12 +54,24 @@ const listingBase = {
 async function cleanup() {
   await prisma.agencySubscription.deleteMany({ where: { agencyId: ids.agency } })
   await prisma.paymentRequest.deleteMany({
-    where: { requestedById: { in: [ids.owner, ids.agent, ids.invitee] } },
+    where: { requestedById: { in: [ids.owner, ids.agent, ids.invitee, ids.inboxInvitee] } },
   })
-  await prisma.listing.deleteMany({ where: { ownerId: { in: [ids.owner, ids.agent, ids.invitee] } } })
+  await prisma.listing.deleteMany({ where: { ownerId: { in: [ids.owner, ids.agent, ids.invitee, ids.inboxInvitee] } } })
   await prisma.agency.deleteMany({ where: { id: ids.agency } })
   await prisma.user.deleteMany({
-    where: { id: { in: [ids.owner, ids.agent, ids.invitee, ids.admin] } },
+    where: {
+      id: {
+        in: [
+          ids.owner,
+          ids.agent,
+          ids.invitee,
+          ids.inboxInvitee,
+          ids.commercialInvitee,
+          ids.pendingInvitee,
+          ids.admin,
+        ],
+      },
+    },
   })
 }
 
@@ -60,9 +79,28 @@ async function run() {
   try {
     await prisma.user.createMany({
       data: [
-        { id: ids.owner, email: `${ids.owner}@example.test`, name: "Owner" },
+        {
+          id: ids.owner,
+          email: `${ids.owner}@example.test`,
+          name: "Owner",
+          accountType: "AGENCY",
+          agencyUpgradeStatus: "APPROVED",
+        },
         { id: ids.agent, email: `${ids.agent}@example.test`, name: "Agent" },
         { id: ids.invitee, email: `${ids.invitee}@example.test`, name: "Invitee" },
+        { id: ids.inboxInvitee, email: `${ids.inboxInvitee}@example.test`, name: "Inbox Invitee" },
+        {
+          id: ids.commercialInvitee,
+          email: `${ids.commercialInvitee}@example.test`,
+          name: "Commercial Invitee",
+          accountType: "AGENCY",
+          agencyUpgradeStatus: "APPROVED",
+        },
+        {
+          id: ids.pendingInvitee,
+          email: `${ids.pendingInvitee}@example.test`,
+          name: "Pending Invitee",
+        },
         { id: ids.admin, email: `${ids.admin}@example.test`, name: "Admin", role: "ADMIN" },
       ],
     })
@@ -104,6 +142,48 @@ async function run() {
       },
     })
 
+    assert.equal(
+      (await ensureAgencyForApprovedOwner(ids.owner)).id,
+      ids.agency
+    )
+    assert.equal(
+      await prisma.agencyMembership.count({
+        where: { userId: ids.owner, status: "ACTIVE", role: "OWNER" },
+      }),
+      1
+    )
+
+    await assert.rejects(
+      () => ensureAgencyForApprovedOwner(ids.agent),
+      /AGENCY_AGENT_CANNOT_OWN/
+    )
+    await assert.rejects(
+      () =>
+        createAgencyInvitation({
+          ownerId: ids.owner,
+          email: `${ids.commercialInvitee}@example.test`,
+        }),
+      /ACCOUNT_NOT_ELIGIBLE_AS_AGENT/
+    )
+
+    const pendingInvitation = await createAgencyInvitation({
+      ownerId: ids.owner,
+      email: `${ids.pendingInvitee}@example.test`,
+    })
+    await prisma.user.update({
+      where: { id: ids.pendingInvitee },
+      data: { agencyUpgradeStatus: "PENDING" },
+    })
+    await assert.rejects(
+      () =>
+        acceptAgencyInvitation({
+          token: pendingInvitation.token,
+          userId: ids.pendingInvitee,
+          userEmail: `${ids.pendingInvitee}@example.test`,
+        }),
+      /ACCOUNT_NOT_ELIGIBLE_AS_AGENT/
+    )
+
     const invitation = await createAgencyInvitation({
       ownerId: ids.owner,
       email: `${ids.invitee}@example.test`,
@@ -115,6 +195,25 @@ async function run() {
       userEmail: `${ids.invitee}@example.test`,
     })
     assert.equal(accepted.role, "AGENT")
+    assert.equal(
+      (await prisma.user.findUniqueOrThrow({ where: { id: ids.invitee } }))
+        .accountType,
+      "INDIVIDUAL"
+    )
+
+    const inboxInvitation = await createAgencyInvitation({
+      ownerId: ids.owner,
+      email: `${ids.inboxInvitee}@example.test`,
+    })
+    assert.equal(await countUnreadMessages(ids.inboxInvitee), 1)
+    const acceptedFromInbox = await acceptAgencyInvitationById({
+      invitationId: inboxInvitation.invitation.id,
+      userId: ids.inboxInvitee,
+      userEmail: `${ids.inboxInvitee}@example.test`,
+    })
+    assert.equal(acceptedFromInbox.role, "AGENT")
+    assert.equal(await countUnreadMessages(ids.inboxInvitee), 0)
+    await leaveAgency(ids.inboxInvitee)
     const assigned = await prisma.listing.create({
       data: {
         ...listingBase,
@@ -125,6 +224,28 @@ async function run() {
         billingKind: "AGENCY_INCLUDED",
       },
     })
+    const attributedListing = await prisma.listing.findUniqueOrThrow({
+      where: { id: assigned.id },
+      include: {
+        images: true,
+        owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
+        agency: {
+          select: {
+            slug: true,
+            name: true,
+            phone: true,
+            whatsapp: true,
+            createdById: true,
+          },
+        },
+        assignedAgent: { select: { id: true, name: true } },
+      },
+    })
+    const attributedCard = toPublicListingCard(attributedListing)
+    assert.equal(attributedCard.ownerName, "Owner")
+    assert.equal(attributedCard.ownerKind, "agency")
+    assert.equal(attributedCard.agencyRepresentativeName, "Invitee")
+    assert.equal(attributedCard.agencyRepresentativeRole, "AGENT")
     await leaveAgency(ids.invitee)
     assert.equal(
       (await prisma.listing.findUniqueOrThrow({ where: { id: assigned.id } })).assignedAgentId,

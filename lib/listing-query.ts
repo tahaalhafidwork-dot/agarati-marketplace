@@ -39,6 +39,12 @@ import {
   roomCountOptionsForCategory,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
+import {
+  airConditioningCodeFromStored,
+  airConditioningLabel,
+  isAirConditioningCode,
+  type AirConditioningCode,
+} from "@/lib/air-conditioning"
 
 export type SortKey =
   | "newest"
@@ -59,6 +65,7 @@ export type ListingQuery = {
   rooms?: number
   floor?: number
   propertyFloors?: number
+  airConditioning?: AirConditioningCode
   minPrice?: number
   maxPrice?: number
   minArea?: number
@@ -134,6 +141,7 @@ export function parseListingQuery(
   const roomsRaw = get("rooms")
   const floorRaw = get("floor")
   const propertyFloorsRaw = get("propertyFloors")
+  const airConditioningRaw = get("airConditioning")
   const sortRaw = get("sort")
   const minPrice = get("minPrice")
   const maxPrice = get("maxPrice")
@@ -175,6 +183,12 @@ export function parseListingQuery(
         ) ??
         undefined
       : undefined,
+    airConditioning:
+      categoryFlags?.heating &&
+      airConditioningRaw &&
+      isAirConditioningCode(airConditioningRaw)
+        ? airConditioningRaw
+        : undefined,
     minPrice: minPrice
       ? Number(fromArabicDigits(minPrice)) || undefined
       : undefined,
@@ -232,6 +246,13 @@ export function queryListings(query: ListingQuery): SampleListing[] {
         propertyFloors,
         query.propertyFloors,
       )
+    ) {
+      return false
+    }
+
+    if (
+      query.airConditioning &&
+      airConditioningCodeFromStored(item.heating) !== query.airConditioning
     ) {
       return false
     }
@@ -294,6 +315,9 @@ export function buildPropertiesHref(
   if (query.propertyFloors != null) {
     params.set("propertyFloors", String(query.propertyFloors))
   }
+  if (query.airConditioning) {
+    params.set("airConditioning", query.airConditioning)
+  }
   if (query.minPrice != null) params.set("minPrice", String(query.minPrice))
   if (query.maxPrice != null) params.set("maxPrice", String(query.maxPrice))
   if (query.minArea != null) params.set("minArea", String(query.minArea))
@@ -317,6 +341,7 @@ export function countActiveFilters(query: ListingQuery): number {
   if (query.rooms != null) n += 1
   if (query.floor != null) n += 1
   if (query.propertyFloors != null) n += 1
+  if (query.airConditioning) n += 1
   if (query.minPrice != null || query.maxPrice != null) n += 1
   if (query.minArea != null || query.maxArea != null) n += 1
   if (query.q) n += 1
@@ -412,6 +437,13 @@ export function activeFilterChips(query: ListingQuery): {
       key: "propertyFloors",
       label: `طوابق العقار: ${formatPropertyFloors(query.propertyFloors, query.category)}`,
       clearHref: without({ propertyFloors: undefined }),
+    })
+  }
+  if (query.airConditioning) {
+    chips.push({
+      key: "airConditioning",
+      label: airConditioningLabel(query.airConditioning) ?? query.airConditioning,
+      clearHref: without({ airConditioning: undefined }),
     })
   }
   if (query.minPrice != null || query.maxPrice != null) {

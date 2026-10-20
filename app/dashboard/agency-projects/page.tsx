@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import Link from "next/link"
 
 import { AgencyProjectsManager } from "@/components/dashboard/agency-projects-manager"
+import { getActiveAgencyMembership } from "@/lib/agency-service"
 import { getSessionUser } from "@/lib/auth"
 import {
   listAgencyProjectsForUser,
@@ -19,26 +19,10 @@ export default async function AgencyProjectsPage() {
   const user = await getSessionUser()
   if (!user) redirect("/login?next=/dashboard/agency-projects")
 
-  const isAgency =
-    user.accountType === "AGENCY" || user.agencyUpgradeStatus === "APPROVED"
-
-  if (!isAgency) {
-    return (
-      <div className="space-y-3">
-        <h1 className="text-xl font-semibold">المشاريع السكنية</h1>
-        <p className="rounded-lg border border-border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
-          هذه الصفحة للوكالات الموافق عليها فقط.{" "}
-          <Link
-            href="/dashboard/settings#account-type"
-            className="text-primary hover:underline"
-          >
-            اطلب الترقية من الإعدادات
-          </Link>
-          .
-        </p>
-      </div>
-    )
-  }
+  const membership = isDatabaseConfigured()
+    ? await getActiveAgencyMembership(user.id)
+    : null
+  if (!membership || membership.role !== "OWNER") redirect("/dashboard")
 
   const linked = isDatabaseConfigured()
     ? await listAgencyProjectsForUser(user.id)

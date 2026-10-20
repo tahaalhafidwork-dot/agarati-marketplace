@@ -223,36 +223,43 @@ export async function ensureAgencyForApprovedOwner(
   const user = await db.user.findUnique({ where: { id: userId } })
   if (!user) throw new Error("USER_NOT_FOUND")
 
+  const activeMembership = await db.agencyMembership.findFirst({
+    where: { userId, status: "ACTIVE" },
+    include: { agency: true },
+  })
+  if (activeMembership?.role === "AGENT") {
+    throw new Error("AGENCY_AGENT_CANNOT_OWN")
+  }
+
+  const agencyData = {
+    name: user.agencyOfficeName?.trim() || user.name,
+    status: "APPROVED" as const,
+    logoUrl: user.agencyLogoUrl,
+    bio: user.agencyBio,
+    phone: user.phone,
+    whatsapp: user.whatsapp,
+    instagramUrl: user.agencySocialUrl,
+    citySlug: user.agencyCitySlug,
+    districtSlug: user.agencyDistrictSlug,
+    neighborhoodSlug: user.agencyNeighborhoodSlug,
+    addressLine: user.agencyAddressLine,
+  }
+
+  if (activeMembership?.role === "OWNER") {
+    return db.agency.update({
+      where: { id: activeMembership.agencyId },
+      data: agencyData,
+    })
+  }
+
   const agency = await db.agency.upsert({
     where: { slug: `u-${user.id}` },
     create: {
       slug: `u-${user.id}`,
-      name: user.agencyOfficeName?.trim() || user.name,
-      status: "APPROVED",
-      logoUrl: user.agencyLogoUrl,
-      bio: user.agencyBio,
-      phone: user.phone,
-      whatsapp: user.whatsapp,
-      instagramUrl: user.agencySocialUrl,
-      citySlug: user.agencyCitySlug,
-      districtSlug: user.agencyDistrictSlug,
-      neighborhoodSlug: user.agencyNeighborhoodSlug,
-      addressLine: user.agencyAddressLine,
+      ...agencyData,
       createdById: user.id,
     },
-    update: {
-      name: user.agencyOfficeName?.trim() || user.name,
-      status: "APPROVED",
-      logoUrl: user.agencyLogoUrl,
-      bio: user.agencyBio,
-      phone: user.phone,
-      whatsapp: user.whatsapp,
-      instagramUrl: user.agencySocialUrl,
-      citySlug: user.agencyCitySlug,
-      districtSlug: user.agencyDistrictSlug,
-      neighborhoodSlug: user.agencyNeighborhoodSlug,
-      addressLine: user.agencyAddressLine,
-    },
+    update: agencyData,
   })
 
   await db.agencyMembership.upsert({

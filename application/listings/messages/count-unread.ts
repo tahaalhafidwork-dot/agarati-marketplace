@@ -7,15 +7,31 @@ export async function countUnreadMessages(userId: string): Promise<number> {
   if (!isDatabaseConfigured() || !userId) return 0
   if (!(await isDatabaseReachable())) return 0
   try {
-    const [listingUnread, requestUnread] = await Promise.all([
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    })
+    const [listingUnread, requestUnread, agencyInvitations] = await Promise.all([
       prisma.message.count({
         where: { toId: userId, readAt: null },
       }),
       prisma.propertyRequestMessage.count({
         where: { toId: userId, readAt: null },
       }),
+      prisma.agencyInvitation.count({
+        where: {
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+          OR: [
+            { invitedUserId: userId },
+            ...(user?.email
+              ? [{ emailNormalized: user.email.trim().toLowerCase() }]
+              : []),
+          ],
+        },
+      }),
     ])
-    return listingUnread + requestUnread
+    return listingUnread + requestUnread + agencyInvitations
   } catch {
     return 0
   }

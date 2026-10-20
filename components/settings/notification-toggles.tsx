@@ -58,7 +58,7 @@ export function NotificationToggles({ user }: { user: SessionUser }) {
                 إشعارات أخرى
               </span>
               <span className="block text-xs text-muted-foreground">
-                مراجعة الإعلانات، الترقيات، وتنبيهات المنصة العامة
+                مراجعة الإعلانات، طلبات الوكالة، وتنبيهات المنصة العامة
               </span>
             </span>
           </span>

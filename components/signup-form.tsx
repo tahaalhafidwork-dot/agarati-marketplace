@@ -64,10 +64,10 @@ export function SignupForm({
                   >
                     <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F2744]">
                       <UserRound className="size-4 text-[color:var(--brand-gold)]" />
-                      فردي / معلن
+                      حساب فردي
                     </span>
                     <span className="text-[0.7rem] leading-5 text-muted-foreground">
-                      للأفراد ونشر العقارات الشخصية
+                      الحساب العادي للأفراد ونشر العقارات الشخصية
                     </span>
                   </button>
                   <button

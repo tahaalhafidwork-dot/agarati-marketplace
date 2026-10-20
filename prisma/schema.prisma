@@ -154,10 +154,12 @@ model User {
   name                   String
   phone                  String?
   whatsapp               String?
+  /// Platform access. SEEKER/LISTER are legacy normal-user values; ADMIN is privileged.
   role                   UserRole            @default(LISTER)
   avatarUrl              String?
   notifyMessages         Boolean             @default(true)
   notifyOther            Boolean             @default(true)
+  /// Commercial identity only: an individual account or an agency account.
   accountType            AccountType         @default(INDIVIDUAL)
   agencyUpgradeStatus    AgencyUpgradeStatus @default(NONE)
   agencyOfficeName       String?

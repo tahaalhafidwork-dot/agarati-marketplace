@@ -21,10 +21,15 @@ const initial: SettingsActionState = {}
 
 export function AccountTypePanel({
   user,
+  agencyMembership,
   highlightPending,
   scrollIntoView,
 }: {
   user: SessionUser
+  agencyMembership?: {
+    role: "OWNER" | "AGENT"
+    agencyName: string
+  } | null
   highlightPending?: boolean
   /** Scroll this section into view (e.g. from mobile nav CTA). */
   scrollIntoView?: boolean
@@ -35,8 +40,13 @@ export function AccountTypePanel({
     initial
   )
 
+  const isAgencyAgent = agencyMembership?.role === "AGENT"
+  const isAgencyOwner = agencyMembership?.role === "OWNER"
   const isAgency =
-    user.accountType === "AGENCY" || user.agencyUpgradeStatus === "APPROVED"
+    isAgencyOwner ||
+    (!isAgencyAgent &&
+      (user.accountType === "AGENCY" ||
+        user.agencyUpgradeStatus === "APPROVED"))
   const isPending = user.agencyUpgradeStatus === "PENDING"
   const isRejected = user.agencyUpgradeStatus === "REJECTED"
   const fromSignup =
@@ -57,7 +67,7 @@ export function AccountTypePanel({
       <SettingsSection
         id="account-type"
         title="نوع الحساب"
-        description="اطّلع على نوع حسابك واطلب الترقية إلى وكيل عقاري — تجاري بعد مراجعة الإدارة."
+        description="الحساب إما فردي أو وكالة تجارية؛ ويصبح الفرد وكيلاً فقط عند انضمامه إلى وكالة بدعوة."
         className={cn(
           highlightPending && isPending
             ? "ring-2 ring-[color:var(--brand-gold)]/35"
@@ -67,7 +77,11 @@ export function AccountTypePanel({
       >
         <div className="flex flex-wrap items-center gap-2">
           <Badge className="rounded-md bg-[#0F2744]/8 text-[#0F2744]">
-            {isAgency ? "وكيل عقاري — تجاري" : "حساب فردي"}
+            {isAgencyAgent
+              ? "حساب فردي · وكيل"
+              : isAgency
+                ? "وكالة تجارية"
+                : "حساب فردي"}
           </Badge>
           {isPending ? (
             <Badge variant="outline" className="gap-1 rounded-md text-[0.65rem]">
@@ -90,13 +104,31 @@ export function AccountTypePanel({
           ) : null}
         </div>
 
-        {isAgency ? (
+        {isAgencyAgent ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 rounded-lg border border-[color:var(--brand-gold)]/30 bg-[color:var(--brand-gold)]/10 px-3 py-3 text-sm text-[#0F2744]">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[color:var(--brand-gold)]" />
+              <div className="min-w-0 space-y-1">
+                <p>حسابك فردي، ودورك وكيل لدى {agencyMembership?.agencyName}.</p>
+                <p className="text-xs text-muted-foreground">
+                  حسابك الشخصي مستقل، وتظهر لك فقط الإعلانات والحصة المسندة إليك.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/properties"
+              className="inline-flex text-sm font-medium text-primary underline-offset-2 hover:underline"
+            >
+              إدارة عقاراتي
+            </Link>
+          </div>
+        ) : isAgency ? (
           <div className="space-y-3">
             <div className="flex items-start gap-2 rounded-lg border border-[color:var(--brand-gold)]/30 bg-[color:var(--brand-gold)]/10 px-3 py-3 text-sm text-[#0F2744]">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[color:var(--brand-gold)]" />
               <div className="min-w-0 space-y-1">
                 <p>
-                  حسابك مفعّل كوكيل عقاري — تجاري
+                  هذا الحساب مفعّل كوكالة تجارية
                   {user.agencyOfficeName ? ` · ${user.agencyOfficeName}` : ""}.
                 </p>
                 {user.agencySocialUrl ? (
@@ -134,7 +166,7 @@ export function AccountTypePanel({
             <p className="text-xs leading-5 text-amber-950/85">
               {fromSignup
                 ? "أرسلت طلب الوكالة أثناء إنشاء الحساب"
-                : "أرسلت طلب الترقية من الإعدادات"}
+                : "أرسلت طلب تحويل الحساب إلى وكالة من الإعدادات"}
               {user.agencyOfficeName
                 ? ` باسم المكتب «${user.agencyOfficeName}»`
                 : ""}
@@ -157,9 +189,8 @@ export function AccountTypePanel({
             <div className="flex items-start gap-2 text-sm text-[#0F2744]">
               <Building2 className="mt-0.5 size-4 shrink-0 text-[color:var(--brand-gold)]" />
               <p className="leading-6">
-                الترقية تتيح حضوراً أوضح للمكاتب التجارية بعد موافقة الإدارة —
-                وليست تفعيلاً فورياً. يمكنك أيضاً اختيار «وكالة تجارية» مباشرة عند
-                إنشاء حساب جديد.
+                يحوّل الطلب الحساب الفردي إلى وكالة تجارية بعد موافقة الإدارة،
+                وليس إلى دور «وكيل». دور الوكيل يُكتسب فقط بقبول دعوة من وكالة.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -246,7 +277,7 @@ export function AccountTypePanel({
             ) : null}
             <Button type="submit" size="sm" className="gap-1.5" disabled={pending}>
               <Send className="size-3.5" />
-              {pending ? "جاري الإرسال…" : "طلب الترقية"}
+              {pending ? "جاري الإرسال…" : "طلب التحويل إلى وكالة"}
             </Button>
           </form>
         )}
