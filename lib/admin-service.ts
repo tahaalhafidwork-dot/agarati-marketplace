@@ -111,6 +111,14 @@ export async function fetchAdminUsers(take = 100) {
         agencyDistrictSlug: true,
         agencyNeighborhoodSlug: true,
         agencyRequestNote: true,
+        agencyMemberships: {
+          where: { status: "ACTIVE" },
+          take: 1,
+          select: {
+            role: true,
+            agency: { select: { name: true, slug: true } },
+          },
+        },
         _count: { select: { listings: true, favorites: true } },
       },
     })

@@ -44,6 +44,10 @@ export type AdminUserListItem = {
   agencyDistrictSlug: string | null
   agencyNeighborhoodSlug: string | null
   agencyRequestNote: string | null
+  agencyMembership: {
+    role: "OWNER" | "AGENT"
+    agency: { name: string; slug: string }
+  } | null
 }
 
 const roleMeta: Record<
@@ -296,7 +300,12 @@ export function AdminUsersList({
                         ) : null}
                         {u.accountType === "AGENCY" ? (
                           <Badge className="h-5 rounded-md bg-[color:var(--brand-gold)]/20 text-[0.55rem] text-[#0F2744]">
-                            وكيل تجاري
+                            صاحب وكالة
+                          </Badge>
+                        ) : null}
+                        {u.agencyMembership?.role === "AGENT" ? (
+                          <Badge className="h-5 rounded-md bg-sky-100 text-[0.55rem] text-sky-900">
+                            وكيل · {u.agencyMembership.agency.name}
                           </Badge>
                         ) : null}
                         {u.agencyUpgradeStatus === "PENDING" ? (
@@ -435,6 +444,7 @@ export function AdminUsersList({
                         role: u.role,
                         accountType: u.accountType,
                         agencyUpgradeStatus: u.agencyUpgradeStatus,
+                        agencyMembership: u.agencyMembership,
                       }}
                     />
                   </div>

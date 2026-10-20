@@ -34,6 +34,10 @@ export type AdminUserCredentials = {
   role: "SEEKER" | "LISTER" | "ADMIN"
   accountType: "INDIVIDUAL" | "AGENCY"
   agencyUpgradeStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED"
+  agencyMembership?: {
+    role: "OWNER" | "AGENT"
+    agency: { name: string; slug: string }
+  } | null
 }
 
 function accountKindFromUser(user: AdminUserCredentials): AdminAccountKind {
@@ -49,13 +53,13 @@ function accountKindFromUser(user: AdminUserCredentials): AdminAccountKind {
 function accountKindLabel(kind: AdminAccountKind): string {
   switch (kind) {
     case "ADMIN":
-      return "مشرف"
+      return "مدير النظام"
     case "SEEKER":
-      return "باحث"
+      return "باحث عن عقار"
     case "AGENCY":
-      return "وكيل تجاري"
+      return "صاحب وكالة"
     default:
-      return "معلن"
+      return "معلن فردي"
   }
 }
 
@@ -188,7 +192,7 @@ export function AdminUserCredentialsPanel({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">الدور</Label>
+            <Label className="text-xs">نوع الحساب والصلاحية</Label>
             <Select
               value={kind}
               onValueChange={(v) =>
@@ -196,16 +200,29 @@ export function AdminUserCredentialsPanel({
               }
             >
               <SelectTrigger className="h-9 w-full">
-                <SelectValue />
-                {accountKindLabel(kind)}
+                <SelectValue>
+                  {(selected: AdminAccountKind | null) =>
+                    accountKindLabel(selected ?? kind)
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="LISTER">معلن</SelectItem>
-                <SelectItem value="SEEKER">باحث</SelectItem>
-                <SelectItem value="AGENCY">وكيل تجاري</SelectItem>
-                <SelectItem value="ADMIN">مشرف</SelectItem>
+                <SelectItem value="LISTER">معلن فردي</SelectItem>
+                <SelectItem value="SEEKER">باحث عن عقار</SelectItem>
+                <SelectItem value="AGENCY">صاحب وكالة</SelectItem>
+                <SelectItem value="ADMIN">مدير النظام</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[0.65rem] leading-5 text-muted-foreground">
+              الوكيل يُضاف من لوحة الوكالة، ولا يُمنح من صلاحية النظام العامة.
+            </p>
+            {user.agencyMembership ? (
+              <p className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-[0.65rem] text-sky-900">
+                عضوية الوكالة: {user.agencyMembership.role === "OWNER" ? "صاحب" : "وكيل"}
+                {" · "}
+                {user.agencyMembership.agency.name}
+              </p>
+            ) : null}
           </div>
         </div>
 

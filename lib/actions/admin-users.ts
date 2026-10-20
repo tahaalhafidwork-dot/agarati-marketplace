@@ -14,7 +14,7 @@ export type AdminUserActionState = {
   success?: string
 }
 
-/** Admin UI kind: UserRole values + AGENCY (maps to LISTER + accountType). */
+/** Platform access plus AGENCY, which creates an OWNER membership. */
 export type AdminAccountKind = UserRole | "AGENCY"
 
 const ACCOUNT_KINDS: AdminAccountKind[] = [
@@ -151,7 +151,7 @@ export async function updateAdminUserCredentialsAction(
   return {
     success:
       kindRaw === "AGENCY"
-        ? "تم حفظ البيانات وتحويل الحساب إلى وكيل تجاري."
+        ? "تم حفظ البيانات وتحويل الحساب إلى صاحب وكالة."
         : "تم حفظ بيانات الدخول.",
   }
 }
