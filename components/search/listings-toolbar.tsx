@@ -72,51 +72,57 @@ export function ListingsToolbar({
 
   return (
     <>
-      <div className="border-b border-border bg-card px-3 py-2 md:px-4">
+      <div className="border-b border-[#0F2744]/8 bg-[linear-gradient(180deg,#fff_0%,#fbfaf8_100%)] px-3 py-1.5 md:px-4">
         <div
-          className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-background"
+          className="flex items-center gap-2.5"
           role="toolbar"
           aria-label="تصفية وترتيب"
         >
           <button
             type="button"
             className={cn(
-              "flex h-11 items-center justify-center gap-2 border-e border-border text-xs font-semibold transition-colors",
+              "group relative flex h-9 min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden rounded-full border px-3.5 text-xs font-semibold text-white transition-all duration-200",
               activeCount > 0
-                ? "bg-primary text-primary-foreground"
-                : "text-foreground hover:bg-muted/50 active:bg-muted"
+                ? "border-[#C7A77E]/55 bg-[linear-gradient(135deg,#0B213B_0%,#173B61_100%)] shadow-[0_6px_18px_rgba(15,39,68,0.22)] hover:shadow-[0_8px_22px_rgba(15,39,68,0.26)]"
+                : "border-[#B8956C]/35 bg-[linear-gradient(135deg,#0F2744_0%,#193B5E_100%)] shadow-[0_5px_16px_rgba(15,39,68,0.18)] hover:border-[#B8956C]/55 hover:shadow-[0_7px_20px_rgba(15,39,68,0.23)]"
             )}
             onClick={() => setFilterOpen(true)}
             aria-haspopup="dialog"
           >
-            <SlidersHorizontal className="size-3.5 shrink-0" strokeWidth={2} />
-            <span>تصفية</span>
+            <span className="flex min-w-0 items-center gap-2.5">
+              <SlidersHorizontal
+                className="size-3.5 shrink-0 text-[#D6B98F]"
+                strokeWidth={2}
+              />
+              <span className="h-4 w-px shrink-0 bg-[#D6B98F]/35" aria-hidden />
+              <span className="truncate tracking-[0.01em]">تصفية النتائج</span>
+            </span>
             {activeCount > 0 ? (
-              <span
-                className={cn(
-                  "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[0.65rem] leading-none",
-                  "bg-primary-foreground/20 text-primary-foreground"
-                )}
-              >
+              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#C7A77E] px-1.5 py-1 text-[0.62rem] font-bold leading-none text-[#0F2744] shadow-[0_1px_4px_rgba(0,0,0,0.16)]">
                 {activeCount}
               </span>
-            ) : null}
+            ) : (
+              <span className="size-1.5 shrink-0 rounded-full bg-[#D6B98F] shadow-[0_0_0_3px_rgba(214,185,143,0.12)]" aria-hidden />
+            )}
           </button>
 
           <button
             type="button"
             className={cn(
-              "flex h-11 items-center justify-center gap-2 text-xs font-semibold transition-colors",
+              "flex h-8 max-w-[6.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-[0.65rem] font-medium ring-1 transition-colors",
               currentSort !== "newest"
-                ? "bg-primary/8 text-primary"
-                : "text-foreground hover:bg-muted/50 active:bg-muted"
+                ? "bg-[#B8956C]/10 text-[#0F2744] ring-[#B8956C]/30"
+                : "bg-white/75 text-[#0F2744]/65 ring-[#0F2744]/10 hover:bg-white hover:text-[#0F2744] hover:ring-[#0F2744]/20"
             )}
             onClick={() => setSortOpen(true)}
             aria-haspopup="dialog"
             disabled={pending}
           >
-            <ArrowUpDown className="size-3.5 shrink-0" strokeWidth={2} />
-            <span className="max-w-[8.5rem] truncate">
+            <ArrowUpDown
+              className="size-3 shrink-0 text-[#9A7854]"
+              strokeWidth={1.8}
+            />
+            <span className="truncate">
               {sortLabel(currentSort)}
             </span>
           </button>
