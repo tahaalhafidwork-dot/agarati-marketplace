@@ -36,6 +36,9 @@ yarn-error.log*
 # local IDE / Cursor agent (may contain MCP tokens)
 .cursor/
 
+# MCP configuration (do not commit — may reference auth headers)
+.mcp.json
+
 # vercel
 .vercel
 

@@ -20,21 +20,21 @@ export const DEMO_ADVERTISERS: PublicAdvertiser[] = [
     name: "أحمد الكردي",
     kind: "person",
     isDemo: true,
-    subtitle: "معلن فردي",
+    subtitle: "حساب فردي",
   },
   {
     slug: "sara-mansouri",
     name: "سارة المنصوري",
     kind: "person",
     isDemo: true,
-    subtitle: "معلنة فردية",
+    subtitle: "حساب فردي",
   },
   {
     slug: "karim-basri",
     name: "كريم البصري",
     kind: "person",
     isDemo: true,
-    subtitle: "معلن فردي",
+    subtitle: "حساب فردي",
   },
   {
     slug: "rafidayn-realty",
@@ -66,7 +66,7 @@ export function getDemoAdvertiser(slug: string): PublicAdvertiser | null {
 }
 
 export function advertiserKindLabel(kind: AdvertiserKind): string {
-  return kind === "agency" ? "وكالة عقارية" : "معلن فردي"
+  return kind === "agency" ? "وكالة عقارية" : "حساب فردي"
 }
 
 export function advertiserHref(slug: string): string {

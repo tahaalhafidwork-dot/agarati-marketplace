@@ -15,7 +15,10 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
-import { ensureAgencyForApprovedOwner } from "@/lib/agency-service"
+import {
+  ensureAgencyForApprovedOwner,
+  getActiveAgencyMembership,
+} from "@/lib/agency-service"
 
 export type SettingsActionState = {
   error?: string
@@ -216,8 +219,19 @@ export async function requestAgencyUpgradeAction(
 ): Promise<SettingsActionState> {
   try {
     const user = await requireDbUser()
-    if (user.accountType === "AGENCY" || user.agencyUpgradeStatus === "APPROVED") {
-      return { success: "حسابك مفعّل كوكيل عقاري — تجاري." }
+    const membership = await getActiveAgencyMembership(user.id)
+    if (
+      user.accountType === "AGENCY" ||
+      user.agencyUpgradeStatus === "APPROVED" ||
+      membership?.role === "OWNER"
+    ) {
+      return { success: "حسابك مفعّل كوكالة تجارية." }
+    }
+    if (membership?.role === "AGENT") {
+      return {
+        error:
+          "أنت وكيل نشط لدى وكالة. يجب إنهاء العضوية الحالية قبل طلب تحويل حسابك إلى وكالة تجارية مستقلة.",
+      }
     }
     if (user.agencyUpgradeStatus === "PENDING") {
       return { error: "طلبك قيد المراجعة حالياً." }
@@ -264,32 +278,68 @@ export async function requestAgencyUpgradeAction(
     const uploaded = await uploadAgencyLogoFile(user.id, logoFile)
     if ("error" in uploaded) return { error: uploaded.error }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        agencyUpgradeStatus: "PENDING",
-        agencyOfficeName: officeName,
-        agencyLogoUrl: uploaded.url,
-        agencySocialUrl,
-        agencyCitySlug,
-        agencyDistrictSlug,
-        agencyNeighborhoodSlug,
-        agencyAddressLine,
-        agencyBio,
-        agencyRequestNote: note,
-        agencyRequestedAt: new Date(),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agency-user:${user.id}`}, 0))`
+      const currentUser = await tx.user.findUnique({
+        where: { id: user.id },
+        select: { accountType: true, agencyUpgradeStatus: true },
+      })
+      if (!currentUser) throw new Error("USER_NOT_FOUND")
+      if (
+        currentUser.accountType === "AGENCY" ||
+        currentUser.agencyUpgradeStatus === "APPROVED"
+      ) {
+        throw new Error("ALREADY_AGENCY")
+      }
+      if (currentUser.agencyUpgradeStatus === "PENDING") {
+        throw new Error("AGENCY_REQUEST_PENDING")
+      }
+      const activeMembership = await tx.agencyMembership.findFirst({
+        where: { userId: user.id, status: "ACTIVE" },
+        select: { id: true },
+      })
+      if (activeMembership) throw new Error("AGENCY_MEMBERSHIP_EXISTS")
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          agencyUpgradeStatus: "PENDING",
+          agencyOfficeName: officeName,
+          agencyLogoUrl: uploaded.url,
+          agencySocialUrl,
+          agencyCitySlug,
+          agencyDistrictSlug,
+          agencyNeighborhoodSlug,
+          agencyAddressLine,
+          agencyBio,
+          agencyRequestNote: note,
+          agencyRequestedAt: new Date(),
+        },
+      })
     })
 
     revalidatePath("/dashboard/settings")
     revalidatePath("/admin/users")
     revalidatePath("/agencies")
-    return { success: "تم إرسال طلب الترقية. سنراجعه قريباً." }
+    return {
+      success: "تم إرسال طلب تحويل الحساب إلى وكالة تجارية. سنراجعه قريبًا.",
+    }
   } catch (e) {
     if (e instanceof Error && e.message === "UNAUTHORIZED") {
       return { error: "يجب تسجيل الدخول." }
     }
-    return { error: "تعذّر إرسال طلب الترقية." }
+    if (e instanceof Error && e.message === "AGENCY_MEMBERSHIP_EXISTS") {
+      return {
+        error:
+          "أنت عضو نشط في وكالة. يجب إنهاء العضوية قبل طلب تحويل الحساب إلى وكالة مستقلة.",
+      }
+    }
+    if (e instanceof Error && e.message === "ALREADY_AGENCY") {
+      return { success: "حسابك مفعّل كوكالة تجارية." }
+    }
+    if (e instanceof Error && e.message === "AGENCY_REQUEST_PENDING") {
+      return { error: "طلبك قيد المراجعة حاليًا." }
+    }
+    return { error: "تعذّر إرسال طلب تحويل الحساب إلى وكالة." }
   }
 }
 
@@ -386,24 +436,52 @@ export async function reviewAgencyUpgradeAction(
     return { error: "لا يوجد طلب معلّق لهذا المستخدم." }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id },
-      data:
-        decision === "APPROVED"
-          ? {
-              agencyUpgradeStatus: "APPROVED",
-              accountType: "AGENCY",
-            }
-          : {
-              agencyUpgradeStatus: "REJECTED",
-              accountType: "INDIVIDUAL",
-            },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agency-user:${id}`}, 0))`
+      const currentTarget = await tx.user.findUnique({
+        where: { id },
+        select: { agencyUpgradeStatus: true },
+      })
+      if (currentTarget?.agencyUpgradeStatus !== "PENDING") {
+        throw new Error("AGENCY_REQUEST_NOT_PENDING")
+      }
+      const membership = await tx.agencyMembership.findFirst({
+        where: { userId: id, status: "ACTIVE", role: "AGENT" },
+        select: { id: true },
+      })
+      if (decision === "APPROVED" && membership) {
+        throw new Error("AGENCY_AGENT_CANNOT_OWN")
+      }
+      await tx.user.update({
+        where: { id },
+        data:
+          decision === "APPROVED"
+            ? {
+                agencyUpgradeStatus: "APPROVED",
+                accountType: "AGENCY",
+              }
+            : {
+                agencyUpgradeStatus: "REJECTED",
+                accountType: "INDIVIDUAL",
+              },
+      })
+      if (decision === "APPROVED") {
+        await ensureAgencyForApprovedOwner(id, tx)
+      }
     })
-    if (decision === "APPROVED") {
-      await ensureAgencyForApprovedOwner(id, tx)
+  } catch (error) {
+    if (error instanceof Error && error.message === "AGENCY_REQUEST_NOT_PENDING") {
+      return { error: "لا يوجد طلب معلّق لهذا المستخدم." }
     }
-  })
+    if (error instanceof Error && error.message === "AGENCY_AGENT_CANNOT_OWN") {
+      return {
+        error:
+          "لا يمكن اعتماد الطلب لأن الحساب أصبح وكيلًا نشطًا لدى وكالة. يجب إنهاء العضوية أولًا.",
+      }
+    }
+    return { error: "تعذّرت مراجعة طلب الوكالة." }
+  }
 
   revalidatePath("/admin/users")
   revalidatePath("/dashboard/settings")
@@ -411,7 +489,7 @@ export async function reviewAgencyUpgradeAction(
   return {
     success:
       decision === "APPROVED"
-        ? "تمت ترقية الحساب إلى وكيل عقاري — تجاري."
-        : "تم رفض طلب الترقية.",
+        ? "تم تحويل الحساب إلى وكالة تجارية وتفعيل ملكية الوكالة."
+        : "تم رفض طلب التحويل إلى وكالة.",
   }
 }

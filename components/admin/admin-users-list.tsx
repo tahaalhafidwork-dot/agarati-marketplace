@@ -21,6 +21,11 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { deleteAdminUserAction } from "@/lib/actions/admin-users"
 import { reviewAgencyUpgradeAction } from "@/lib/actions/settings"
+import {
+  ACCOUNT_IDENTITY_LABELS,
+  resolveAccountIdentity,
+  type AccountIdentityKind,
+} from "@/lib/account-identity"
 import { advertiserHref, userAdvertiserSlug } from "@/lib/demo-advertisers"
 import { cn } from "@/lib/utils"
 
@@ -50,22 +55,22 @@ export type AdminUserListItem = {
   } | null
 }
 
-const roleMeta: Record<
-  string,
+const identityMeta: Record<
+  ReturnType<typeof resolveAccountIdentity>,
   { label: string; icon: typeof Shield; className: string }
 > = {
-  ADMIN: {
-    label: "مشرف",
-    icon: Shield,
-    className: "bg-[#0F2744] text-[color:var(--brand-gold)]",
-  },
-  LISTER: {
-    label: "معلن",
+  AGENCY: {
+    label: ACCOUNT_IDENTITY_LABELS.AGENCY,
     icon: Building2,
     className: "bg-[color:var(--brand-gold)]/15 text-[#0F2744]",
   },
-  SEEKER: {
-    label: "باحث",
+  AGENT: {
+    label: ACCOUNT_IDENTITY_LABELS.AGENT,
+    icon: UserRound,
+    className: "bg-sky-100 text-sky-900",
+  },
+  INDIVIDUAL: {
+    label: ACCOUNT_IDENTITY_LABELS.INDIVIDUAL,
     icon: UserRound,
     className: "bg-muted text-muted-foreground",
   },
@@ -86,10 +91,31 @@ function formatDate(iso: string) {
 function matchesQuery(u: AdminUserListItem, q: string) {
   const needle = q.trim().toLowerCase()
   if (!needle) return true
-  const hay = [u.name, u.email, u.phone ?? "", u.whatsapp ?? "", u.role]
+  const identity = resolveAccountIdentity({
+    accountType: u.accountType,
+    agencyMembershipRole: u.agencyMembership?.role,
+  })
+  const hay = [
+    u.name,
+    u.email,
+    u.phone ?? "",
+    u.whatsapp ?? "",
+    identityMeta[identity].label,
+    u.role === "ADMIN" ? "مدير النظام" : "مستخدم",
+    u.agencyMembership?.agency.name ?? "",
+  ]
     .join(" ")
     .toLowerCase()
   return hay.includes(needle)
+}
+
+type IdentityScope = "ALL" | AccountIdentityKind
+
+function identityKindForUser(user: AdminUserListItem): AccountIdentityKind {
+  return resolveAccountIdentity({
+    accountType: user.accountType,
+    agencyMembershipRole: user.agencyMembership?.role,
+  })
 }
 
 export function AdminUsersList({
@@ -101,6 +127,7 @@ export function AdminUsersList({
 }) {
   const [query, setQuery] = useState("")
   const [scope, setScope] = useState<"all" | "pending">("all")
+  const [identityScope, setIdentityScope] = useState<IdentityScope>("ALL")
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [agencyBusyId, setAgencyBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -111,15 +138,30 @@ export function AdminUsersList({
     () => users.filter((u) => u.agencyUpgradeStatus === "PENDING").length,
     [users]
   )
+  const identityCounts = useMemo(() => {
+    const counts: Record<AccountIdentityKind, number> = {
+      INDIVIDUAL: 0,
+      AGENT: 0,
+      AGENCY: 0,
+    }
+    for (const user of users) counts[identityKindForUser(user)] += 1
+    return counts
+  }, [users])
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
       if (scope === "pending" && u.agencyUpgradeStatus !== "PENDING") {
         return false
       }
+      if (
+        identityScope !== "ALL" &&
+        identityKindForUser(u) !== identityScope
+      ) {
+        return false
+      }
       return matchesQuery(u, query)
     })
-  }, [users, query, scope])
+  }, [users, query, scope, identityScope])
 
   const reviewAgency = (
     u: AdminUserListItem,
@@ -186,8 +228,37 @@ export function AdminUsersList({
               : "text-muted-foreground hover:bg-muted/60"
           )}
         >
-          طلبات ترقية معلّقة ({pendingAgencyCount})
+          طلبات التحويل إلى وكالة ({pendingAgencyCount})
         </button>
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-border bg-card p-3">
+        <p className="text-xs font-medium text-[#0F2744]">تصنيف الحساب</p>
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+          {(
+            [
+              ["ALL", "كل التصنيفات", users.length],
+              ["INDIVIDUAL", "حسابات فردية", identityCounts.INDIVIDUAL],
+              ["AGENT", "الوكلاء", identityCounts.AGENT],
+              ["AGENCY", "الوكالات التجارية", identityCounts.AGENCY],
+            ] as const
+          ).map(([value, label, count]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={identityScope === value}
+              onClick={() => setIdentityScope(value)}
+              className={cn(
+                "rounded-lg border px-2.5 py-2 text-xs font-medium transition",
+                identityScope === value
+                  ? "border-[color:var(--brand-gold)] bg-[color:var(--brand-gold)]/15 text-[#0F2744]"
+                  : "border-transparent bg-muted/45 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {label} ({count})
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="relative">
@@ -212,7 +283,7 @@ export function AdminUsersList({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {query.trim() || scope === "pending"
+        {query.trim() || scope === "pending" || identityScope !== "ALL"
           ? `${filtered.length} نتيجة معروضة`
           : `${users.length} حساب مسجّل`}
       </p>
@@ -231,18 +302,37 @@ export function AdminUsersList({
       {filtered.length === 0 ? (
         <p className="rounded-lg border border-border px-4 py-8 text-center text-sm text-muted-foreground">
           {scope === "pending"
-            ? "لا طلبات ترقية معلّقة حالياً."
-            : query.trim()
+            ? "لا توجد طلبات تحويل إلى وكالة معلّقة حاليًا."
+            : query.trim() || identityScope !== "ALL"
               ? "لا نتائج لهذا البحث."
               : "لا مستخدمين بعد."}
         </p>
       ) : (
         <ul className="space-y-3">
           {filtered.map((u) => {
-            const role = roleMeta[u.role] ?? roleMeta.LISTER
-            const RoleIcon = role.icon
-            const initial = (u.name || u.email || "؟").slice(0, 1)
-            const profileHref = advertiserHref(userAdvertiserSlug(u.id))
+            const identityKind = identityKindForUser(u)
+            const identity = identityMeta[identityKind]
+            const IdentityIcon = identity.icon
+            const agencyName =
+              u.agencyMembership?.agency.name ||
+              u.agencyOfficeName?.trim() ||
+              null
+            const displayName =
+              identityKind === "AGENCY" || identityKind === "AGENT"
+                ? agencyName || u.name
+                : u.name
+            const relationshipLine =
+              identityKind === "AGENT"
+                ? `الوكيل: ${u.name}`
+                : identityKind === "AGENCY"
+                  ? `صاحب الحساب: ${u.name}`
+                  : null
+            const initial = (displayName || u.email || "؟").slice(0, 1)
+            const profileHref = u.agencyMembership
+              ? u.agencyMembership.role === "AGENT"
+                ? `/agencies/${encodeURIComponent(u.agencyMembership.agency.slug)}/agents/${encodeURIComponent(u.id)}`
+                : `/agencies/${encodeURIComponent(u.agencyMembership.agency.slug)}`
+              : advertiserHref(userAdvertiserSlug(u.id))
             const deleting = pending && pendingId === u.id
             const isSelf = u.id === currentUserId
             const fromSignup =
@@ -275,37 +365,40 @@ export function AdminUsersList({
                   <div className="min-w-0 flex-1 space-y-2.5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <Link
-                          href={profileHref}
-                          className="truncate text-sm font-semibold text-[#0F2744] hover:underline"
-                        >
-                          {u.name}
-                        </Link>
+                        <span className="min-w-0">
+                          <Link
+                            href={profileHref}
+                            className="block truncate text-sm font-semibold text-[#0F2744] hover:underline"
+                          >
+                            {displayName}
+                          </Link>
+                          {relationshipLine ? (
+                            <span className="mt-0.5 block truncate text-[0.65rem] text-muted-foreground">
+                              {relationshipLine}
+                            </span>
+                          ) : null}
+                        </span>
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem] font-medium",
-                            role.className
+                            identity.className
                           )}
                         >
-                          <RoleIcon className="size-3" strokeWidth={2} />
-                          {role.label}
+                          <IdentityIcon className="size-3" strokeWidth={2} />
+                          {identity.label}
                         </span>
+                        {u.role === "ADMIN" ? (
+                          <Badge className="h-5 gap-1 rounded-md bg-[#0F2744] text-[0.55rem] text-[color:var(--brand-gold)]">
+                            <Shield className="size-3" />
+                            مدير النظام
+                          </Badge>
+                        ) : null}
                         {isSelf ? (
                           <Badge
                             variant="outline"
                             className="h-5 text-[0.55rem]"
                           >
                             أنت
-                          </Badge>
-                        ) : null}
-                        {u.accountType === "AGENCY" ? (
-                          <Badge className="h-5 rounded-md bg-[color:var(--brand-gold)]/20 text-[0.55rem] text-[#0F2744]">
-                            صاحب وكالة
-                          </Badge>
-                        ) : null}
-                        {u.agencyMembership?.role === "AGENT" ? (
-                          <Badge className="h-5 rounded-md bg-sky-100 text-[0.55rem] text-sky-900">
-                            وكيل · {u.agencyMembership.agency.name}
                           </Badge>
                         ) : null}
                         {u.agencyUpgradeStatus === "PENDING" ? (
@@ -378,7 +471,7 @@ export function AdminUsersList({
                           ) : null}
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium text-[#0F2744]">
-                              طلب وكالة عقارية — تجاري
+                              طلب تحويل الحساب إلى وكالة تجارية
                               {u.agencyOfficeName
                                 ? ` · ${u.agencyOfficeName}`
                                 : ""}

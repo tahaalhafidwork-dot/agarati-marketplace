@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ClipboardList, Home, MessageCircle } from "lucide-react"
+import { Building2, CalendarClock, ClipboardList, Home, MessageCircle } from "lucide-react"
 
+import { AcceptInvitationByIdForm } from "@/components/agency/accept-invitation-form"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { getSessionUser } from "@/lib/auth"
@@ -23,12 +24,20 @@ type InboxRow = {
   subtitle?: string
 }
 
+type AgencyInvitationRow = {
+  id: string
+  expiresAt: Date
+  agency: { name: string }
+  invitedBy: { name: string }
+}
+
 export default async function MessagesInboxPage() {
   const user = await getSessionUser()
   let threads: InboxRow[] = []
+  let agencyInvitations: AgencyInvitationRow[] = []
 
   if (user && isDatabaseConfigured()) {
-    const [listingMessages, requestMessages] = await Promise.all([
+    const [listingMessages, requestMessages, invitations] = await Promise.all([
       prisma.message.findMany({
         where: { OR: [{ fromId: user.id }, { toId: user.id }] },
         orderBy: { createdAt: "desc" },
@@ -44,7 +53,26 @@ export default async function MessagesInboxPage() {
           from: { select: { id: true, name: true } },
         },
       }),
+      prisma.agencyInvitation.findMany({
+        where: {
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+          OR: [
+            { invitedUserId: user.id },
+            { emailNormalized: user.email.trim().toLowerCase() },
+          ],
+        },
+        select: {
+          id: true,
+          expiresAt: true,
+          agency: { select: { name: true } },
+          invitedBy: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
     ])
+    agencyInvitations = invitations
 
     const listingMap = new Map<string, InboxRow>()
     for (const msg of listingMessages) {
@@ -129,20 +157,53 @@ export default async function MessagesInboxPage() {
     )
   }
 
-  const unreadTotal = threads.reduce((n, t) => n + t.unread, 0)
+  const unreadTotal =
+    threads.reduce((n, t) => n + t.unread, 0) + agencyInvitations.length
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-xl font-semibold">
           <MessageCircle className="size-5" />
-          الرسائل
+          الرسائل والتنبيهات
         </h1>
         <p className="text-sm text-muted-foreground">
-          كل محادثاتك: إعلانات وطلبات عقار
+          محادثات العقارات وطلبات العقار ودعوات الوكالات
           {unreadTotal > 0 ? ` · ${unreadTotal} غير مقروء` : ""}
         </p>
       </div>
+
+      {agencyInvitations.length > 0 ? (
+        <section className="overflow-hidden rounded-2xl border border-[color:var(--brand-gold)]/35 bg-[linear-gradient(145deg,#fffdf9,#faf6ef)] shadow-sm">
+          <div className="flex items-center gap-2 border-b border-[color:var(--brand-gold)]/20 px-4 py-3">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-[#0F2744] text-[color:var(--brand-gold)]">
+              <Building2 className="size-4" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-[#0F2744]">دعوات الوكالات</h2>
+              <p className="text-xs text-muted-foreground">راجع الدعوة قبل الانضمام؛ حسابك الشخصي يبقى مستقلًا.</p>
+            </div>
+          </div>
+          <ul className="divide-y divide-[color:var(--brand-gold)]/20">
+            {agencyInvitations.map((invitation) => (
+              <li key={invitation.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-[#0F2744] text-white">دعوة وكالة</Badge>
+                    <p className="truncate text-sm font-semibold text-[#0F2744]">{invitation.agency.name}</p>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">أرسلها {invitation.invitedBy.name}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CalendarClock className="size-3.5" aria-hidden="true" />
+                    تنتهي {invitation.expiresAt.toLocaleString("ar-IQ-u-nu-latn")}
+                  </p>
+                </div>
+                <AcceptInvitationByIdForm invitationId={invitation.id} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {!isDatabaseConfigured() ? (
         <p className="text-sm text-muted-foreground">
@@ -158,7 +219,7 @@ export default async function MessagesInboxPage() {
           </Link>{" "}
           لعرض الرسائل.
         </p>
-      ) : threads.length === 0 ? (
+      ) : threads.length === 0 && agencyInvitations.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-12 text-center">
           <p className="text-sm text-muted-foreground">لا رسائل بعد.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">

@@ -45,7 +45,7 @@ export default async function AdminUsersPage() {
       <div>
         <h1 className="text-xl font-semibold text-[#0F2744]">المستخدمون</h1>
         <p className="text-sm text-muted-foreground">
-          بحث، تعديل رموز الدخول، أو حذف الحسابات
+          بحث، تعديل الحسابات وصلاحيات النظام، أو حذفها
         </p>
       </div>
 

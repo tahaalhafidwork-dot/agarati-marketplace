@@ -124,7 +124,7 @@ export function MobileNav({
                     )}
                   >
                     <Send className="size-3.5" />
-                    طلب الترقية
+                    التحويل إلى وكالة
                   </Link>
                 ) : null}
               </>

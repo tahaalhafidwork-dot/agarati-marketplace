@@ -36,6 +36,11 @@ import {
 } from "@/application/listings/commands/parse-listing-form"
 import { prisma } from "@/lib/db"
 import { toEnglishDigits } from "@/lib/numerals"
+import {
+  airConditioningCodeFromStored,
+  airConditioningLabel,
+  airConditioningStoredAliases,
+} from "@/lib/air-conditioning"
 import { sampleListings } from "@/lib/sample-listings"
 import {
   guestActions,
@@ -320,6 +325,7 @@ export function assertListingFilterContracts(): string[] {
     floorNumber: "6",
     propertyFloors: "2",
     buildingFloors: "12",
+    heating: "central-ducts",
     furnished: "مؤثث",
     city: "erbil",
     district: "erbil-center",
@@ -336,6 +342,7 @@ export function assertListingFilterContracts(): string[] {
     parsedListing.floorNumber !== 6 ||
     parsedListing.propertyFloors !== 2 ||
     parsedListing.buildingFloors !== 12 ||
+    parsedListing.heating !== "central-ducts" ||
     parsedListing.furnished !== "مؤثث" ||
     parsedListing.floor !== "6 / 12" ||
     validateListingFormCore(parsedListing, "create") !== null
@@ -355,15 +362,23 @@ export function assertListingFilterContracts(): string[] {
 
   listingForm.set("category", "house")
   listingForm.set("propertyFloors", "4")
+  listingForm.set("inComplex", "1")
+  listingForm.set("complex", "forged-residential-complex")
   const multiFloorHouse = parseListingForm(listingForm)
   if (
     multiFloorHouse.propertyFloors !== 4 ||
+    multiFloorHouse.inComplex ||
+    multiFloorHouse.complexSlug != null ||
     validateListingFormCore(multiFloorHouse, "create") !== null
   ) {
-    errors.push("house listings should accept the more-than-three floor bucket")
+    errors.push(
+      "independent houses should accept 4+ floors and discard complex fields"
+    )
   }
   listingForm.set("category", "apartment")
   listingForm.set("propertyFloors", "2")
+  listingForm.delete("inComplex")
+  listingForm.delete("complex")
 
   if (
     toEnglishDigits("١۲3") !== "123" ||
@@ -393,6 +408,25 @@ export function assertListingFilterContracts(): string[] {
     errors.push("listing form should reject free-text furnished values")
   }
   listingForm.set("furnished", "مؤثث")
+
+  listingForm.set("heating", "قيمة مزورة")
+  const forgedAirConditioning = parseListingForm(listingForm)
+  if (
+    forgedAirConditioning.heating != null ||
+    !validateListingFormCore(forgedAirConditioning, "create")
+  ) {
+    errors.push("listing form should reject free-text air-conditioning values")
+  }
+  listingForm.set("heating", "central-ducts")
+
+  if (
+    airConditioningCodeFromStored("مركزي") !== "central-ducts" ||
+    airConditioningCodeFromStored("مكيفات سبليت") !== "wall-split" ||
+    airConditioningLabel("ceiling-cassette") !== "مكيف سقفي (كاسيت)" ||
+    !airConditioningStoredAliases("central-ducts").includes("تكييف مركزي")
+  ) {
+    errors.push("air-conditioning values should normalize legacy stored values")
+  }
 
   listingForm.set("buildingFloors", "5")
   const impossibleFloor = parseListingForm(listingForm)
@@ -439,6 +473,7 @@ export function assertListingFilterContracts(): string[] {
     rooms: "3",
     floor: "6",
     propertyFloors: "1",
+    airConditioning: "central-ducts",
     q: "عنكاوا",
   }
   const match = queryListings(parseQuery(baseParams))
@@ -458,6 +493,7 @@ export function assertListingFilterContracts(): string[] {
     roomCount: number
     floorNumber: number
     propertyFloors: number
+    heating: { in: string[] }
     title: { contains: string }
   }
   if (
@@ -473,6 +509,8 @@ export function assertListingFilterContracts(): string[] {
     whereFilters.roomCount !== 3 ||
     whereFilters.floorNumber !== 6 ||
     whereFilters.propertyFloors !== 1 ||
+    !whereFilters.heating.in.includes("central-ducts") ||
+    !whereFilters.heating.in.includes("مركزي") ||
     whereFilters.title.contains !== "عنكاوا"
   ) {
     errors.push("database where clause should include every selected filter")
@@ -483,6 +521,15 @@ export function assertListingFilterContracts(): string[] {
   ) as unknown as { propertyFloors: { gte: number } }
   if (houseMoreThanThreeWhere.propertyFloors.gte !== 4) {
     errors.push("house floor filtering should treat the fourth option as 4+")
+  }
+
+  if (
+    parseQuery({ type: "land", airConditioning: "central-ducts" })
+      .airConditioning != null ||
+    parseQuery({ type: "apartment", airConditioning: "unknown" })
+      .airConditioning != null
+  ) {
+    errors.push("air-conditioning filters should reject unsupported values")
   }
 
   const mismatches: Array<[string, Record<string, string>]> = [
@@ -501,6 +548,7 @@ export function assertListingFilterContracts(): string[] {
     ["rooms", { type: "apartment", rooms: "4" }],
     ["floor", { type: "apartment", floor: "5" }],
     ["property floors", { type: "apartment", propertyFloors: "2" }],
+    ["air conditioning", { type: "apartment", airConditioning: "wall-split" }],
     ["text search", { type: "apartment", q: "عنوان غير موجود" }],
   ]
   for (const [name, params] of mismatches) {
@@ -530,6 +578,7 @@ export function assertListingFilterContracts(): string[] {
     roundTrip.rooms !== 3 ||
     roundTrip.floor !== 6 ||
     roundTrip.propertyFloors !== 1 ||
+    roundTrip.airConditioning !== "central-ducts" ||
     roundTrip.q !== "عنكاوا" ||
     roundTrip.sort !== "price-asc"
   ) {
@@ -551,6 +600,7 @@ export function assertListingFilterContracts(): string[] {
     searched.rooms !== 3 ||
     searched.floor !== 6 ||
     searched.propertyFloors !== 1 ||
+    searched.airConditioning !== "central-ducts" ||
     searched.q !== "عنكاوا"
   ) {
     errors.push("submitting search should preserve existing property filters")

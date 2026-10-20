@@ -10,7 +10,9 @@ import {
   SessionsPanel,
   SettingsProfileCard,
 } from "@/components/settings"
+import { getActiveAgencyMembership } from "@/lib/agency-service"
 import { getSessionUser } from "@/lib/auth"
+import { isDatabaseConfigured } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 
@@ -31,6 +33,17 @@ export default async function SettingsPage({
   const params = await searchParams
   const highlightPending = params.agency === "pending"
   const focusAccountType = params.focus === "account-type"
+
+  let agencyMembership: Awaited<
+    ReturnType<typeof getActiveAgencyMembership>
+  > = null
+  if (isDatabaseConfigured()) {
+    try {
+      agencyMembership = await getActiveAgencyMembership(user.id)
+    } catch {
+      agencyMembership = null
+    }
+  }
 
   let lastSignInAt: string | null = null
   if (isSupabaseConfigured()) {
@@ -61,20 +74,33 @@ export default async function SettingsPage({
 
       {highlightPending && user.agencyUpgradeStatus === "PENDING" ? (
         <div className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-          <p className="font-medium">تم إنشاء حسابك — طلب الوكالة قيد المراجعة</p>
+          <p className="font-medium">تم إنشاء حسابك — طلب تحويله إلى وكالة قيد المراجعة</p>
           <p className="mt-1 text-xs leading-5 text-amber-950/85">
-            يمكنك استخدام المنصة كحساب فردي الآن. ستظهر حالة الموافقة هنا وفي
-            لوحة الإدارة بعد المراجعة.
+            يمكنك استخدام المنصة كحساب فردي الآن. عند الموافقة يتحول إلى وكالة
+            تجارية وتُفعّل لوحة الوكالة.
           </p>
         </div>
       ) : null}
 
-      <SettingsProfileCard user={user} />
+      <SettingsProfileCard
+        user={user}
+        agencyMembership={
+          agencyMembership ? { role: agencyMembership.role } : null
+        }
+      />
       <ProfileForm user={user} />
       <SecurityForm user={user} />
       <NotificationToggles user={user} />
       <AccountTypePanel
         user={user}
+        agencyMembership={
+          agencyMembership
+            ? {
+                role: agencyMembership.role,
+                agencyName: agencyMembership.agency.name,
+              }
+            : null
+        }
         highlightPending={highlightPending}
         scrollIntoView={focusAccountType}
       />

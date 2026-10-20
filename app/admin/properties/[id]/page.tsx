@@ -22,6 +22,7 @@ import {
   parseLegacyRoomCount,
   toEnglishNumber,
 } from "@/lib/listing-attributes"
+import { airConditioningLabel } from "@/lib/air-conditioning"
 import { categoryLabels, dealLabels } from "@/lib/sample-listings"
 import { listingImagePublicUrl } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
@@ -75,10 +76,39 @@ export default async function AdminPropertyDetailPage({
           whatsapp: true,
         },
       },
+      agency: {
+        select: {
+          name: true,
+          createdById: true,
+          phone: true,
+          whatsapp: true,
+        },
+      },
+      assignedAgent: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          whatsapp: true,
+        },
+      },
       images: { orderBy: { sortOrder: "asc" } },
     },
   })
   if (!listing) notFound()
+
+  const advertiserName = listing.agency?.name ?? listing.owner.name
+  const representative = listing.agency
+    ? listing.assignedAgent ?? listing.owner
+    : null
+  const contact = representative ?? listing.owner
+  const representativeRole =
+    representative && listing.agency
+      ? representative.id === listing.agency.createdById
+        ? "صاحب الوكالة"
+        : "الوكيل العقاري"
+      : null
 
   const category = prismaToCategory[listing.category]
   const deal = prismaToDeal[listing.deal]
@@ -137,7 +167,10 @@ export default async function AdminPropertyDetailPage({
       value:
         buildingFloors == null ? "—" : formatBuildingFloors(buildingFloors),
     },
-    { label: "التدفئة", value: listing.heating ?? "—" },
+    {
+      label: "نظام التكييف",
+      value: airConditioningLabel(listing.heating) ?? "—",
+    },
     { label: "مفروش", value: listing.furnished ?? "—" },
     {
       label: "مجمع مقترح",
@@ -300,26 +333,38 @@ export default async function AdminPropertyDetailPage({
           <section className="rounded-xl border border-border bg-card p-3">
             <h2 className="mb-2 text-sm font-semibold text-[#0F2744]">المعلن</h2>
             <div className="space-y-1 text-sm">
-              <p className="font-medium text-[#0F2744]">{listing.owner.name}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-[#0F2744]">{advertiserName}</p>
+                {listing.agency ? (
+                  <Badge variant="secondary" className="text-[0.6rem]">
+                    وكالة تجارية
+                  </Badge>
+                ) : null}
+              </div>
+              {representative && representativeRole ? (
+                <p className="text-xs text-muted-foreground">
+                  {representativeRole}: {representative.name}
+                </p>
+              ) : null}
               <p
                 className="inline-flex items-center gap-1 text-muted-foreground"
                 dir="ltr"
               >
                 <Mail className="size-3.5" />
-                {listing.owner.email}
+                {contact.email}
               </p>
-              {listing.owner.phone ? (
+              {contact.phone ?? listing.agency?.phone ? (
                 <p
                   className="inline-flex items-center gap-1 text-muted-foreground"
                   dir="ltr"
                 >
                   <Phone className="size-3.5" />
-                  {listing.owner.phone}
+                  {contact.phone ?? listing.agency?.phone}
                 </p>
               ) : null}
-              {listing.owner.whatsapp ? (
+              {contact.whatsapp ?? listing.agency?.whatsapp ? (
                 <p className="text-xs text-muted-foreground" dir="ltr">
-                  واتساب: {listing.owner.whatsapp}
+                  واتساب: {contact.whatsapp ?? listing.agency?.whatsapp}
                 </p>
               ) : null}
             </div>

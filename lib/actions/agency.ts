@@ -6,6 +6,7 @@ import { requireSessionUser } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import {
   acceptAgencyInvitation,
+  acceptAgencyInvitationById,
   createAgencyInvitation,
   leaveAgency,
   reassignAgencyListing,
@@ -27,6 +28,9 @@ const errorMessages: Record<string, string> = {
   INVALID_MEMBER_QUOTA: "الحصة يجب أن تكون بين 0 و30.",
   CANNOT_INVITE_SELF: "لا يمكنك دعوة حسابك نفسه.",
   USER_ALREADY_IN_AGENCY: "المستخدم عضو نشط في وكالة أخرى.",
+  ACCOUNT_NOT_ELIGIBLE_AS_AGENT:
+    "لا يمكن إضافة حساب وكالة أو حساب لديه طلب تحويل معلّق كوكيل. الوكيل يجب أن يكون حسابًا فرديًا.",
+  USER_NOT_FOUND: "الحساب المدعو غير موجود.",
   AGENCY_QUOTA_TOTAL_EXCEEDED: "مجموع الحصص اليدوية يتجاوز 30 إعلانًا.",
   INVITATION_NOT_FOUND: "الدعوة غير موجودة.",
   INVITATION_NOT_PENDING: "هذه الدعوة لم تعد متاحة.",
@@ -52,6 +56,7 @@ function revalidateAgency() {
   revalidatePath("/dashboard/agency")
   revalidatePath("/dashboard/agency/agents")
   revalidatePath("/dashboard/agency/subscription")
+  revalidatePath("/dashboard/messages")
   revalidatePath("/dashboard/properties")
   revalidatePath("/agencies")
 }
@@ -69,7 +74,9 @@ export async function inviteAgencyAgentAction(
     })
     revalidateAgency()
     return {
-      success: "أُنشئت الدعوة. شارك الرابط الآمن مع الوكيل.",
+      success: result.invitation.invitedUserId
+        ? "أُنشئت الدعوة وأُرسل تنبيه داخل حساب الوكيل. يمكن مشاركة الرابط أيضًا."
+        : "أُنشئت الدعوة. البريد غير مسجل حاليًا؛ شارك الرابط الآمن مع الوكيل.",
       invitationUrl: `/agency/invitations/${result.token}`,
     }
   } catch (error) {
@@ -90,6 +97,25 @@ export async function acceptAgencyInvitationAction(
     })
     revalidateAgency()
     return { success: "انضممت إلى الوكالة بنجاح." }
+  } catch (error) {
+    return actionError(error)
+  }
+}
+
+export async function acceptAgencyInvitationByIdAction(
+  _previous: AgencyActionState,
+  formData: FormData
+): Promise<AgencyActionState> {
+  try {
+    const user = await requireSessionUser()
+    await acceptAgencyInvitationById({
+      invitationId: String(formData.get("invitationId") ?? ""),
+      userId: user.id,
+      userEmail: user.email,
+    })
+    revalidateAgency()
+    revalidatePath("/dashboard/messages")
+    return { success: "تم قبول الدعوة والانضمام إلى الوكالة بنجاح." }
   } catch (error) {
     return actionError(error)
   }

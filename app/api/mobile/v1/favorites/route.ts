@@ -38,8 +38,15 @@ export async function GET(request: Request) {
             select: { id: true, name: true, phone: true, whatsapp: true },
           },
           agency: {
-            select: { slug: true, name: true, phone: true, whatsapp: true },
+            select: {
+              slug: true,
+              name: true,
+              phone: true,
+              whatsapp: true,
+              createdById: true,
+            },
           },
+          assignedAgent: { select: { id: true, name: true } },
         },
       },
     },

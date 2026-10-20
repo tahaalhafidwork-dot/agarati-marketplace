@@ -34,8 +34,7 @@ export default async function AdminPropertiesPage() {
   if (session.role !== "ADMIN") {
     return (
       <p className="text-sm text-destructive">
-        هذه الصفحة للمسؤولين فقط. سجّل الدخول بحسابك — إن لم يوجد مشرف بعد
-        يُمنح أول حساب دور ADMIN تلقائياً.
+        هذه الصفحة لمديري النظام فقط.
       </p>
     )
   }
@@ -54,7 +53,24 @@ export default async function AdminPropertiesPage() {
     take: 200,
     include: {
       owner: {
-        select: { name: true, email: true, phone: true, whatsapp: true },
+        select: { id: true, name: true, email: true, phone: true, whatsapp: true },
+      },
+      agency: {
+        select: {
+          name: true,
+          createdById: true,
+          phone: true,
+          whatsapp: true,
+        },
+      },
+      assignedAgent: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          whatsapp: true,
+        },
       },
       images: { orderBy: { sortOrder: "asc" }, take: 1 },
       _count: { select: { images: true } },
@@ -88,6 +104,8 @@ export default async function AdminPropertiesPage() {
           ownerEmail: "demo@agarati.local",
           ownerPhone: null,
           ownerWhatsapp: null,
+          representativeName: null,
+          representativeRole: null,
           proposedComplexName: null,
           complexSlug: null,
           moderationNote: null,
@@ -110,6 +128,7 @@ export default async function AdminPropertiesPage() {
           const imageUrl = item.images[0]
             ? listingImagePublicUrl(item.images[0].storagePath)
             : null
+          const representative = item.assignedAgent ?? item.owner
           return {
             id: item.id,
             title: item.title,
@@ -125,10 +144,20 @@ export default async function AdminPropertiesPage() {
             areaLabel: area,
             imageUrl,
             imageCount: item._count.images,
-            ownerName: item.owner.name,
-            ownerEmail: item.owner.email,
-            ownerPhone: item.owner.phone,
-            ownerWhatsapp: item.owner.whatsapp,
+            ownerName: item.agency?.name ?? item.owner.name,
+            ownerEmail: representative.email,
+            ownerPhone:
+              representative.phone ?? item.agency?.phone ?? item.owner.phone,
+            ownerWhatsapp:
+              representative.whatsapp ??
+              item.agency?.whatsapp ??
+              item.owner.whatsapp,
+            representativeName: item.agency ? representative.name : null,
+            representativeRole: item.agency
+              ? representative.id === item.agency.createdById
+                ? ("OWNER" as const)
+                : ("AGENT" as const)
+              : null,
             proposedComplexName: item.proposedComplexName,
             complexSlug: item.complexSlug,
             moderationNote: item.moderationNote,

@@ -41,6 +41,8 @@ export type AdminListingRow = {
   ownerEmail: string
   ownerPhone: string | null
   ownerWhatsapp: string | null
+  representativeName: string | null
+  representativeRole: "OWNER" | "AGENT" | null
   proposedComplexName: string | null
   complexSlug: string | null
   moderationNote: string | null
@@ -66,6 +68,7 @@ function matchesQuery(row: AdminListingRow, q: string) {
     row.id,
     row.listingNumber ?? "",
     row.ownerName,
+    row.representativeName ?? "",
     row.ownerEmail,
     row.ownerPhone ?? "",
     row.ownerWhatsapp ?? "",
@@ -281,6 +284,14 @@ export function AdminListingsManageList({
                       <span className="font-medium text-[#0F2744]">
                         {row.ownerName}
                       </span>
+                      {row.representativeName ? (
+                        <span className="rounded-md bg-[#0F2744]/6 px-1.5 py-0.5 text-[#0F2744]/75">
+                          {row.representativeRole === "OWNER"
+                            ? "صاحب الوكالة"
+                            : "الوكيل العقاري"}
+                          : {row.representativeName}
+                        </span>
+                      ) : null}
                       <span
                         className="inline-flex items-center gap-0.5"
                         dir="ltr"

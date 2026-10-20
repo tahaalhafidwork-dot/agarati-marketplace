@@ -205,7 +205,7 @@ export default function PropertyDetailScreen() {
           },
         ]
       : []),
-    { label: "التدفئة", value: item.heating ?? "—" },
+    { label: "نظام التكييف", value: item.heating ?? "—" },
     { label: "الأثاث", value: item.furnished ?? "—" },
     { label: "المنطقة", value: item.area },
     {

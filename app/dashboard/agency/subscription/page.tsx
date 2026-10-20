@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
 import { AgencySubscriptionRequestButton } from "@/components/agency/agency-dashboard-forms"
+import { HistoryBackButton } from "@/components/navigation/history-back-button"
 import { Badge } from "@/components/ui/badge"
 import { getSessionUser } from "@/lib/auth"
 import { getActiveAgencyMembership } from "@/lib/agency-service"
@@ -10,7 +11,7 @@ export default async function AgencySubscriptionPage() {
   const user = await getSessionUser()
   if (!user) redirect("/login?next=/dashboard/agency/subscription")
   const membership = await getActiveAgencyMembership(user.id)
-  if (!membership) redirect("/dashboard/agency")
+  if (!membership || membership.role !== "OWNER") redirect("/dashboard")
   const [subscriptions, payments] = await Promise.all([
     prisma.agencySubscription.findMany({
       where: { agencyId: membership.agencyId },
@@ -27,6 +28,7 @@ export default async function AgencySubscriptionPage() {
 
   return (
     <div className="space-y-5">
+      <HistoryBackButton fallbackHref="/dashboard/agency" />
       <header>
         <h1 className="text-xl font-semibold text-[#0F2744]">الاشتراك والدفعات</h1>
         <p className="mt-1 text-sm text-muted-foreground">اشتراك الوكالة 40,000 د.ع لكل 30 يومًا، وحده 30 إعلانًا إجمالًا.</p>
@@ -40,7 +42,7 @@ export default async function AgencySubscriptionPage() {
           </div>
           <Badge variant={active ? "secondary" : "outline"}>{active ? "نشط" : "متوقف"}</Badge>
         </div>
-        {membership.role === "OWNER" ? <div className="mt-5"><AgencySubscriptionRequestButton /></div> : null}
+        <div className="mt-5"><AgencySubscriptionRequestButton /></div>
       </section>
       <section className="rounded-2xl border border-border bg-card p-4">
         <h2 className="font-semibold text-[#0F2744]">سجل طلبات الدفع</h2>

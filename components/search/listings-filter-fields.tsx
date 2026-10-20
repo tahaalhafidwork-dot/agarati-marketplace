@@ -34,6 +34,10 @@ import {
 } from "@/lib/listing-query"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
+import {
+  AIR_CONDITIONING_OPTIONS,
+  type AirConditioningCode,
+} from "@/lib/air-conditioning"
 
 /** MVP deals only — short-stay rental is deferred. */
 export const filterDealOptions: DealType[] = ["sale", "rent", "daily"]
@@ -45,6 +49,7 @@ export type ListingsFilterDraft = {
   rooms: string
   floor: string
   propertyFloors: string
+  airConditioning?: AirConditioningCode
   minPrice: string
   maxPrice: string
   minArea: string
@@ -249,6 +254,37 @@ export function ListingsFilterFields({
         </FilterSection>
       ) : null}
 
+      {category && CATEGORY_FIELD_FLAGS[category].heating ? (
+        <FilterSection title="نظام التكييف">
+          <Select
+            value={value.airConditioning ?? "any"}
+            onValueChange={(next) =>
+              patch({
+                airConditioning:
+                  next === "any"
+                    ? undefined
+                    : (next as AirConditioningCode | undefined),
+              })
+            }
+          >
+            <SelectTrigger
+              aria-label="نظام التكييف"
+              className="h-11 w-full rounded-xl bg-card"
+            >
+              <SelectValue placeholder="الكل" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">الكل</SelectItem>
+              {AIR_CONDITIONING_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterSection>
+      ) : null}
+
       <FilterSection title="السعر (د.ع)">
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
@@ -360,6 +396,7 @@ export function draftFromQuery(query: {
   rooms?: number
   floor?: number
   propertyFloors?: number
+  airConditioning?: AirConditioningCode
   minPrice?: number
   maxPrice?: number
   minArea?: number
@@ -391,6 +428,10 @@ export function draftFromQuery(query: {
       query.category && CATEGORY_FIELD_FLAGS[query.category].propertyFloors
         ? query.propertyFloors?.toString() ?? ""
         : "",
+    airConditioning:
+      query.category && CATEGORY_FIELD_FLAGS[query.category].heating
+        ? query.airConditioning
+        : undefined,
     minPrice: query.minPrice?.toString() ?? "",
     maxPrice: query.maxPrice?.toString() ?? "",
     minArea: query.minArea?.toString() ?? "",
@@ -406,6 +447,7 @@ export function emptyFilterDraft(): ListingsFilterDraft {
     rooms: "",
     floor: "",
     propertyFloors: "",
+    airConditioning: undefined,
     minPrice: "",
     maxPrice: "",
     minArea: "",
@@ -431,6 +473,7 @@ export function draftToQueryPatch(draft: ListingsFilterDraft) {
     propertyFloors: draft.propertyFloors
       ? Number(draft.propertyFloors)
       : undefined,
+    airConditioning: draft.airConditioning,
     minPrice: parseBound(draft.minPrice),
     maxPrice: parseBound(draft.maxPrice),
     minArea: parseBound(draft.minArea),

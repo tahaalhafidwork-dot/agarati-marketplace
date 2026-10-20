@@ -26,6 +26,7 @@ import {
   parseLandUseMeta,
   type LandUse,
 } from "@/lib/land-uses"
+import { airConditioningLabel } from "@/lib/air-conditioning"
 
 export const categoryToPrisma: Record<PropertyCategory, PrismaCategory> = {
   apartment: "APARTMENT",
@@ -67,7 +68,9 @@ export type ListingWithRelations = Listing & {
     name: string
     phone: string | null
     whatsapp: string | null
+    createdById?: string
   } | null
+  assignedAgent?: Pick<User, "id" | "name"> | null
 }
 
 /** Card / list DTO compatible with existing UI components. */
@@ -102,6 +105,9 @@ export type PublicListingCard = {
   /** Public profile slug — /advertisers/[slug] */
   ownerSlug?: string
   ownerKind?: AdvertiserKind
+  /** Person responsible for an agency-owned listing. */
+  agencyRepresentativeName?: string
+  agencyRepresentativeRole?: "OWNER" | "AGENT"
   /** Sample/demo listing — not in Postgres */
   isDemo?: boolean
   /** Sequential listing number for search/share: 00001, 00043, etc. */
@@ -234,7 +240,7 @@ export function toPublicListingCard(
     image: imageUrls[0] ?? "/placeholder-listing.svg",
     images: imageUrls,
     description: toEnglishDigits(listing.description),
-    heating: listing.heating ? toEnglishDigits(listing.heating) : undefined,
+    heating: airConditioningLabel(listing.heating),
     furnished: listing.furnished
       ? toEnglishDigits(listing.furnished)
       : undefined,
@@ -253,6 +259,16 @@ export function toPublicListingCard(
         ? userAdvertiserSlug(listing.owner.id)
         : undefined,
     ownerKind: listing.agency ? "agency" : "person",
+    agencyRepresentativeName:
+      listing.agency && listing.assignedAgent?.name
+        ? toEnglishDigits(listing.assignedAgent.name)
+        : undefined,
+    agencyRepresentativeRole:
+      listing.agency && listing.assignedAgent
+        ? listing.assignedAgent.id === listing.agency.createdById
+          ? "OWNER"
+          : "AGENT"
+        : undefined,
     isDemo: false,
     listingNumber: listing.listingNumber ?? listing.id.slice(-5).toUpperCase(),
     contactMethod: listing.contactMethod ?? undefined,

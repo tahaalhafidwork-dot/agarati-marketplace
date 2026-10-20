@@ -1,7 +1,14 @@
 "use client"
 
-import { useActionState } from "react"
-import { Copy, UserPlus } from "lucide-react"
+import { useActionState, useState } from "react"
+import {
+  CheckCircle2,
+  Copy,
+  Scale,
+  SlidersHorizontal,
+  UserPlus,
+  XCircle,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,16 +24,22 @@ const initialState: AgencyActionState = {}
 
 function Feedback({ state }: { state: AgencyActionState }) {
   if (!state.error && !state.success) return null
+  const failed = Boolean(state.error)
+  const Icon = failed ? XCircle : CheckCircle2
+
   return (
-    <p
+    <div
+      role={failed ? "alert" : "status"}
+      aria-live="polite"
       className={
-        state.error
-          ? "rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          : "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+        failed
+          ? "flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800"
+          : "flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800"
       }
     >
-      {state.error ?? state.success}
-    </p>
+      <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span>{state.error ?? state.success}</span>
+    </div>
   )
 }
 
@@ -66,7 +79,7 @@ export function InviteAgentForm() {
           </Button>
         </div>
       ) : null}
-      <Button disabled={pending} className="gap-2">
+      <Button type="submit" disabled={pending} className="gap-2">
         <UserPlus className="size-4" />
         {pending ? "جارٍ إنشاء الدعوة…" : "إنشاء الدعوة"}
       </Button>
@@ -79,12 +92,20 @@ export function AgencyQuotaForm({
   members,
 }: {
   mode: "EQUAL" | "MANUAL"
-  members: Array<{ userId: string; name: string; used: number; quota: number }>
+  members: Array<{
+    userId: string
+    name: string
+    role: "OWNER" | "AGENT"
+    used: number
+    quota: number
+  }>
 }) {
   const [state, action, pending] = useActionState(
     updateAgencyQuotasAction,
     initialState
   )
+  const [selectedMode, setSelectedMode] = useState(mode)
+
   return (
     <form action={action} className="space-y-3 rounded-2xl border border-border bg-card p-4">
       <div>
@@ -93,34 +114,84 @@ export function AgencyQuotaForm({
           التوزيع المتساوي يعالج الباقي بترتيب العضوية؛ اليدوي لا يسمح بتجاوز 30.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="rounded-lg border border-border p-2 text-sm">
-          <input type="radio" name="mode" value="EQUAL" defaultChecked={mode === "EQUAL"} />{" "}
-          متساوٍ
+      <fieldset className="grid gap-2 sm:grid-cols-2">
+        <legend className="sr-only">طريقة توزيع الحصص</legend>
+        <label className="cursor-pointer">
+          <input
+            className="peer sr-only"
+            type="radio"
+            name="mode"
+            value="EQUAL"
+            checked={selectedMode === "EQUAL"}
+            onChange={() => setSelectedMode("EQUAL")}
+          />
+          <span className="flex min-h-20 items-start gap-3 rounded-xl border border-border bg-background p-3 transition peer-checked:border-[#B8956C] peer-checked:bg-[#fffaf3] peer-checked:ring-2 peer-checked:ring-[#B8956C]/15">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0F2744]/8 text-[#0F2744]">
+              <Scale className="size-4" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-[#0F2744]">توزيع متساوٍ</span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">يوزّع النظام 30 إعلانًا تلقائيًا على الأعضاء.</span>
+            </span>
+          </span>
         </label>
-        <label className="rounded-lg border border-border p-2 text-sm">
-          <input type="radio" name="mode" value="MANUAL" defaultChecked={mode === "MANUAL"} />{" "}
-          يدوي
+        <label className="cursor-pointer">
+          <input
+            className="peer sr-only"
+            type="radio"
+            name="mode"
+            value="MANUAL"
+            checked={selectedMode === "MANUAL"}
+            onChange={() => setSelectedMode("MANUAL")}
+          />
+          <span className="flex min-h-20 items-start gap-3 rounded-xl border border-border bg-background p-3 transition peer-checked:border-[#B8956C] peer-checked:bg-[#fffaf3] peer-checked:ring-2 peer-checked:ring-[#B8956C]/15">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#B8956C]/15 text-[#806446]">
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-[#0F2744]">توزيع يدوي</span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">حدّد حصة كل عضو بما يناسب عمل الوكالة.</span>
+            </span>
+          </span>
         </label>
-      </div>
-      <div className="divide-y divide-border rounded-xl border border-border">
+      </fieldset>
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
         {members.map((member) => (
-          <label key={member.userId} className="flex items-center gap-3 px-3 py-2.5 text-sm">
-            <span className="min-w-0 flex-1 truncate">{member.name}</span>
-            <span className="text-xs text-muted-foreground">مستخدم {member.used}</span>
-            <Input
-              name={`quota:${member.userId}`}
-              type="number"
-              min={0}
-              max={30}
-              defaultValue={member.quota}
-              className="w-20"
-            />
-          </label>
+          <div key={member.userId} className="flex items-center gap-3 px-3 py-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0F2744] text-xs font-semibold text-white">
+              {member.name.trim().slice(0, 1) || "؟"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[#0F2744]">{member.name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {member.role === "OWNER" ? "صاحب الوكالة" : "وكيل"} · مستخدم {member.used}
+              </p>
+            </div>
+            {selectedMode === "MANUAL" ? (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>الحصة</span>
+                <Input
+                  name={`quota:${member.userId}`}
+                  type="number"
+                  min={0}
+                  max={30}
+                  defaultValue={member.quota}
+                  className="w-16 text-center tabular-nums"
+                  aria-label={`حصة ${member.name}`}
+                />
+              </label>
+            ) : (
+              <span className="rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold tabular-nums text-[#0F2744]">
+                {member.quota} إعلان
+              </span>
+            )}
+          </div>
         ))}
       </div>
       <Feedback state={state} />
-      <Button disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ التوزيع"}</Button>
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        {pending ? "جارٍ الحفظ…" : "حفظ التوزيع"}
+      </Button>
     </form>
   )
 }
@@ -133,7 +204,7 @@ export function AgencySubscriptionRequestButton() {
   return (
     <form action={action} className="space-y-3">
       <Feedback state={state} />
-      <Button disabled={pending} className="w-full sm:w-auto">
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
         {pending ? "جارٍ تسجيل الطلب…" : "طلب اشتراك 30 يومًا — 40,000 د.ع"}
       </Button>
       <p className="text-xs text-muted-foreground">
@@ -193,7 +264,7 @@ export function AgencyProfileForm({ agency }: { agency: {
         <textarea name="bio" defaultValue={agency.bio ?? ""} rows={5} className="w-full rounded-xl border border-input bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-ring" />
       </label>
       <div className="sm:col-span-2"><Feedback state={state} /></div>
-      <Button disabled={pending} className="sm:col-span-2 sm:w-fit">
+      <Button type="submit" disabled={pending} className="sm:col-span-2 sm:w-fit">
         {pending ? "جارٍ الحفظ…" : "حفظ الصفحة"}
       </Button>
     </form>

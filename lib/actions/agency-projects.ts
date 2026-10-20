@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { uploadProjectCoverFile } from "@/lib/agency-assets"
+import { requireAgencyOwner } from "@/lib/agency-service"
 import { requireAdmin, requireSessionUser } from "@/lib/auth"
 import { slugifyProjectName } from "@/lib/agency-directory"
 import { inferCommercialFromName, RESIDENTIAL_PROJECT_KINDS } from "@/lib/project-kinds"
@@ -13,20 +14,9 @@ export type AgencyProjectActionState = {
   success?: string
 }
 
-function isApprovedAgency(user: {
-  accountType: string
-  agencyUpgradeStatus: string
-}) {
-  return (
-    user.accountType === "AGENCY" || user.agencyUpgradeStatus === "APPROVED"
-  )
-}
-
 async function requireApprovedAgency() {
   const user = await requireSessionUser()
-  if (!isApprovedAgency(user)) {
-    throw new Error("NOT_AGENCY")
-  }
+  await requireAgencyOwner(user.id)
   return user
 }
 
@@ -67,8 +57,11 @@ export async function attachAgencyProjectAction(
     if (e instanceof Error && e.message === "UNAUTHORIZED") {
       return { error: "يجب تسجيل الدخول." }
     }
-    if (e instanceof Error && e.message === "NOT_AGENCY") {
-      return { error: "هذه الصفحة للوكالات الموافق عليها فقط." }
+    if (
+      e instanceof Error &&
+      ["AGENCY_MEMBERSHIP_REQUIRED", "AGENCY_OWNER_REQUIRED"].includes(e.message)
+    ) {
+      return { error: "هذه الصفحة مخصصة لصاحب الوكالة فقط." }
     }
     return { error: "تعذّر ربط المشروع." }
   }
@@ -129,8 +122,11 @@ export async function proposeProjectAction(
     if (e instanceof Error && e.message === "UNAUTHORIZED") {
       return { error: "يجب تسجيل الدخول." }
     }
-    if (e instanceof Error && e.message === "NOT_AGENCY") {
-      return { error: "هذه الصفحة للوكالات الموافق عليها فقط." }
+    if (
+      e instanceof Error &&
+      ["AGENCY_MEMBERSHIP_REQUIRED", "AGENCY_OWNER_REQUIRED"].includes(e.message)
+    ) {
+      return { error: "هذه الصفحة مخصصة لصاحب الوكالة فقط." }
     }
     return { error: "تعذّر إرسال الاقتراح." }
   }
@@ -163,8 +159,11 @@ export async function detachAgencyProjectAction(
     if (e instanceof Error && e.message === "UNAUTHORIZED") {
       return { error: "يجب تسجيل الدخول." }
     }
-    if (e instanceof Error && e.message === "NOT_AGENCY") {
-      return { error: "هذه الصفحة للوكالات الموافق عليها فقط." }
+    if (
+      e instanceof Error &&
+      ["AGENCY_MEMBERSHIP_REQUIRED", "AGENCY_OWNER_REQUIRED"].includes(e.message)
+    ) {
+      return { error: "هذه الصفحة مخصصة لصاحب الوكالة فقط." }
     }
     return { error: "تعذّر إزالة المشروع." }
   }

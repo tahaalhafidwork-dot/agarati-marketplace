@@ -185,7 +185,7 @@ export default async function PropertyDetailPage({
           },
         ]
       : []),
-    { label: "التدفئة", value: listing.heating ?? "—" },
+    { label: "نظام التكييف", value: listing.heating ?? "—" },
     { label: "الأثاث", value: listing.furnished ?? "—" },
     { label: "المنطقة", value: areaLabel },
     {
@@ -216,6 +216,8 @@ export default async function PropertyDetailPage({
     ownerName: listing.ownerName,
     ownerSlug: listing.ownerSlug,
     ownerKind: listing.ownerKind,
+    representativeName: listing.agencyRepresentativeName,
+    representativeRole: listing.agencyRepresentativeRole,
     phone: listing.ownerPhone,
     whatsapp: listing.ownerWhatsapp,
     favorited,
@@ -305,6 +307,8 @@ export default async function PropertyDetailPage({
                   name={listing.ownerName}
                   slug={listing.ownerSlug}
                   kind={listing.ownerKind}
+                  representativeName={listing.agencyRepresentativeName}
+                  representativeRole={listing.agencyRepresentativeRole}
                   isDemo={listing.isDemo}
                 />
               </div>
@@ -356,6 +360,8 @@ export default async function PropertyDetailPage({
                 name={listing.ownerName}
                 slug={listing.ownerSlug}
                 kind={listing.ownerKind}
+                representativeName={listing.agencyRepresentativeName}
+                representativeRole={listing.agencyRepresentativeRole}
                 isDemo={listing.isDemo}
               />
             </div>

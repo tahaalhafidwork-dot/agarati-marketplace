@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 
 import { ListingVisibilityControls } from "@/components/dashboard/listing-visibility-controls"
+import { HistoryBackButton } from "@/components/navigation/history-back-button"
 import { ListingImage } from "@/components/property/listing-image"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -120,6 +121,7 @@ export default async function MyPropertiesPage({
 
   return (
     <div className="space-y-4">
+      <HistoryBackButton fallbackHref="/dashboard" />
       {noticeRaw === "review" ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           حُفظ التعديل وأُعيد الإعلان إلى «قيد المراجعة». لن يظهر في الموقع العام
