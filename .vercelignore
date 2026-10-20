@@ -1,0 +1,14 @@
+# Keep Vercel upload small — Expo/TWA are not part of the Next.js deploy
+node_modules
+apps/mobile
+android-twa
+.next
+.git
+.turbo
+coverage
+dist
+build
+*.tsbuildinfo
+.env
+.env.*
+!.env.example

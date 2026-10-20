@@ -1,0 +1,16 @@
+{
+  "name": "agarati-android-twa",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Bubblewrap TWA wrapper for AGARATI production web (Play AAB)",
+  "scripts": {
+    "twa:generate": "node ./scripts/generate-project.mjs",
+    "twa:init": "node ./scripts/twa-init.mjs",
+    "twa:update": "bubblewrap update --skipVersionUpgrade",
+    "twa:build": "node ./scripts/twa-build.mjs",
+    "twa:fingerprint": "node ./scripts/print-fingerprint.mjs"
+  },
+  "devDependencies": {
+    "@bubblewrap/cli": "^1.22.3"
+  }
+}
