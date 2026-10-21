@@ -21,7 +21,7 @@ export function UnreadBadge({
         "h-[1.1rem] tabular-nums shadow-sm",
         className
       )}
-      aria-label={`${label} رسالة غير مقروءة`}
+      aria-label={`${label} تنبيه جديد`}
       {...props}
     >
       {label}

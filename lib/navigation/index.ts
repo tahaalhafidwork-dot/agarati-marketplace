@@ -70,6 +70,30 @@ export const dashboardNavSurface = asLinks(
   )
 ) as readonly { href: string; label: string }[]
 
+export type DashboardAgencyRole = "OWNER" | "AGENT" | null
+
+/**
+ * Dashboard navigation must reflect the authenticated agency membership.
+ * Being an agency agent grants an agent workspace, not owner administration.
+ */
+export function dashboardNavForAgencyRole(
+  role: DashboardAgencyRole
+): { href: string; label: string }[] {
+  const base = pick("dashboardOverview", "myProperties", "addProperty")
+  const agency =
+    role === "OWNER"
+      ? pick("agencyDashboard", "agencyProjects")
+      : []
+  const remainder = pick(
+    "messages",
+    "favorites",
+    "propertyRequests",
+    "settings"
+  )
+
+  return asLinks([...base, ...agency, ...remainder])
+}
+
 export const adminNavSurface = asLinks(
   pick(
     "adminOverview",

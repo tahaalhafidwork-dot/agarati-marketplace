@@ -17,17 +17,7 @@ export default async function AgencyDashboardPage() {
   const user = await getSessionUser()
   if (!user) redirect("/login?next=/dashboard/agency")
   const membership = await getActiveAgencyMembership(user.id)
-  if (!membership) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center">
-        <Building2 className="mx-auto size-9 text-[color:var(--brand-gold)]" />
-        <h1 className="mt-3 text-lg font-semibold text-[#0F2744]">لا توجد عضوية وكالة نشطة</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          يمكنك طلب ترقية حسابك من الإعدادات أو قبول دعوة مرسلة إلى بريدك.
-        </p>
-      </div>
-    )
-  }
+  if (!membership || membership.role !== "OWNER") redirect("/dashboard")
 
   const [quotas, activeCount, latestSubscription, pendingPayment] = await Promise.all([
     getAgencyMemberQuotaSnapshot(membership.agencyId),
@@ -67,7 +57,7 @@ export default async function AgencyDashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold text-[#0F2744]">{membership.agency.name}</h1>
-            <Badge variant="outline">{membership.role === "OWNER" ? "صاحب الوكالة" : "وكيل"}</Badge>
+            <Badge variant="outline">صاحب الوكالة</Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">إدارة العقارات والحصص والاشتراك من مكان واحد.</p>
         </div>
@@ -107,7 +97,7 @@ export default async function AgencyDashboardPage() {
         </Link>
       </div>
 
-      {membership.role === "OWNER" ? <AgencyProfileForm agency={membership.agency} /> : null}
+      <AgencyProfileForm agency={membership.agency} />
     </div>
   )
 }

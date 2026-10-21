@@ -20,6 +20,7 @@ import {
   mayManageAgencyListing,
   nextPersonalBillingKind,
 } from "../../lib/agency-policy"
+import { resolveAccountIdentity } from "../../lib/account-identity"
 
 function run() {
   assert.equal(INDIVIDUAL_ACTIVE_LISTING_LIMIT, 3)
@@ -28,6 +29,27 @@ function run() {
   assert.equal(AGENCY_SUBSCRIPTION_PRICE_IQD, 40_000)
   assert.equal(LISTING_TERM_DAYS, 60)
   assert.equal(AGENCY_SUBSCRIPTION_DAYS, 30)
+
+  assert.equal(
+    resolveAccountIdentity({
+      accountType: "INDIVIDUAL",
+    }),
+    "INDIVIDUAL"
+  )
+  assert.equal(
+    resolveAccountIdentity({
+      accountType: "INDIVIDUAL",
+      agencyMembershipRole: "AGENT",
+    }),
+    "AGENT"
+  )
+  assert.equal(
+    resolveAccountIdentity({
+      accountType: "AGENCY",
+      agencyMembershipRole: "OWNER",
+    }),
+    "AGENCY"
+  )
 
   assert.equal(nextPersonalBillingKind(false), "PERSONAL_FREE")
   assert.equal(nextPersonalBillingKind(true), "PERSONAL_PAID")

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { UserRound } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +14,8 @@ type Props = {
   name?: string | null
   slug?: string | null
   kind?: AdvertiserKind | null
+  representativeName?: string | null
+  representativeRole?: "OWNER" | "AGENT" | null
   isDemo?: boolean
   /** Compact for contact strip */
   compact?: boolean
@@ -25,6 +28,8 @@ export function ListingAdvertiserLink({
   name,
   slug,
   kind,
+  representativeName,
+  representativeRole,
   isDemo,
   compact,
   className,
@@ -78,9 +83,23 @@ export function ListingAdvertiserLink({
             </Badge>
           ) : null}
         </span>
-        {!compact && kindLabel ? (
-          <span className="mt-0.5 block text-[0.6rem] text-muted-foreground">
-            {kindLabel}
+        {kindLabel || representativeName ? (
+          <span
+            className={cn(
+              "mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground",
+              compact ? "justify-center text-[0.56rem]" : "text-[0.62rem]"
+            )}
+          >
+            {!compact && kindLabel ? <span>{kindLabel}</span> : null}
+            {kind === "agency" && representativeName ? (
+              <span className="inline-flex items-center gap-1 text-[#0F2744]/75">
+                <UserRound className="size-3" />
+                {representativeRole === "OWNER"
+                  ? "صاحب الوكالة"
+                  : "الوكيل العقاري"}
+                : {representativeName}
+              </span>
+            ) : null}
           </span>
         ) : null}
       </span>

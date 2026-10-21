@@ -45,6 +45,7 @@ export type LocationStepProps = {
   districts: LocationOption[]
   neighborhoods: LocationOption[]
   catalogProjects: CatalogProject[]
+  showComplexOption: boolean
   onCityChange: (value: string) => void
   onDistrictChange: (value: string) => void
   onNeighborhoodChange: (value: string) => void
@@ -72,6 +73,7 @@ export function LocationStep({
   districts,
   neighborhoods,
   catalogProjects,
+  showComplexOption,
   onCityChange,
   onDistrictChange,
   onNeighborhoodChange,
@@ -198,6 +200,7 @@ export function LocationStep({
         </div>
       </div>
 
+      {showComplexOption ? (
       <div className="space-y-3 rounded-xl border border-border bg-[#faf6ef]/50 p-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#0F2744]">
           <input
@@ -320,6 +323,7 @@ export function LocationStep({
           </div>
         ) : null}
       </div>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="streetUi">المحلة/الشارع</Label>

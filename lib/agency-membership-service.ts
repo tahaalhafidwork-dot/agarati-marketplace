@@ -51,10 +51,21 @@ export async function createAgencyInvitation(input: {
 
     const existingUser = await tx.user.findUnique({
       where: { email: emailNormalized },
-      select: { id: true },
+      select: {
+        id: true,
+        accountType: true,
+        agencyUpgradeStatus: true,
+      },
     })
     if (existingUser?.id === input.ownerId) throw new Error("CANNOT_INVITE_SELF")
     if (existingUser) {
+      if (
+        existingUser.accountType === "AGENCY" ||
+        existingUser.agencyUpgradeStatus === "PENDING" ||
+        existingUser.agencyUpgradeStatus === "APPROVED"
+      ) {
+        throw new Error("ACCOUNT_NOT_ELIGIBLE_AS_AGENT")
+      }
       const active = await tx.agencyMembership.findFirst({
         where: { userId: existingUser.id, status: "ACTIVE" },
         select: { agencyId: true },
@@ -110,20 +121,24 @@ export async function getAgencyInvitationByToken(token: string) {
   })
 }
 
-export async function acceptAgencyInvitation(input: {
-  token: string
+type AcceptAgencyInvitationInput = {
   userId: string
   userEmail: string
   now?: Date
-}) {
+}
+
+async function acceptAgencyInvitationRecord(
+  selector: Prisma.AgencyInvitationWhereUniqueInput,
+  lockKey: string,
+  input: AcceptAgencyInvitationInput
+) {
   const now = input.now ?? new Date()
-  const tokenHash = hashInvitationToken(input.token)
   const email = normalizeInvitationEmail(input.userEmail)
 
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agency-invitation:${tokenHash}`}, 0))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agency-invitation:${lockKey}`}, 0))`
     const invitation = await tx.agencyInvitation.findUnique({
-      where: { tokenHash },
+      where: selector,
       include: { agency: true },
     })
     if (!invitation) throw new Error("INVITATION_NOT_FOUND")
@@ -152,6 +167,18 @@ export async function acceptAgencyInvitation(input: {
 
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agency-user:${input.userId}`}, 0))`
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agency-members:${invitation.agencyId}`}, 0))`
+    const invitedUser = await tx.user.findUnique({
+      where: { id: input.userId },
+      select: { accountType: true, agencyUpgradeStatus: true },
+    })
+    if (!invitedUser) throw new Error("USER_NOT_FOUND")
+    if (
+      invitedUser.accountType === "AGENCY" ||
+      invitedUser.agencyUpgradeStatus === "PENDING" ||
+      invitedUser.agencyUpgradeStatus === "APPROVED"
+    ) {
+      throw new Error("ACCOUNT_NOT_ELIGIBLE_AS_AGENT")
+    }
     const otherMembership = await tx.agencyMembership.findFirst({
       where: { userId: input.userId, status: "ACTIVE" },
       select: { agencyId: true },
@@ -205,6 +232,23 @@ export async function acceptAgencyInvitation(input: {
     if (accepted.count !== 1) throw new Error("INVITATION_ALREADY_USED")
     return membership
   })
+}
+
+export async function acceptAgencyInvitation(
+  input: AcceptAgencyInvitationInput & { token: string }
+) {
+  const tokenHash = hashInvitationToken(input.token)
+  return acceptAgencyInvitationRecord({ tokenHash }, tokenHash, input)
+}
+
+export async function acceptAgencyInvitationById(
+  input: AcceptAgencyInvitationInput & { invitationId: string }
+) {
+  return acceptAgencyInvitationRecord(
+    { id: input.invitationId },
+    `id:${input.invitationId}`,
+    input
+  )
 }
 
 export async function updateAgencyQuotas(input: {

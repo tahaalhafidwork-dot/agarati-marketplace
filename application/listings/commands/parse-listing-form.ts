@@ -1,6 +1,9 @@
 import { normalizeIraqPhone } from "@/lib/phone"
 import { parseServicesFromForm } from "@/lib/listing-services"
-import { CATEGORY_FIELD_FLAGS } from "@/lib/listing-form-config"
+import {
+  CATEGORY_FIELD_FLAGS,
+  categoryAllowsComplex,
+} from "@/lib/listing-form-config"
 import { isLandUse, type LandUse } from "@/lib/land-uses"
 import {
   BUILDING_FLOOR_OPTIONS,
@@ -13,6 +16,7 @@ import {
   roomCountOptionsForCategory,
 } from "@/lib/listing-attributes"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
+import { airConditioningCodeFromStored } from "@/lib/air-conditioning"
 
 export type ContactMethod = "WHATSAPP_PHONE" | "ALL" | "CHAT"
 
@@ -89,17 +93,26 @@ export function parseListingForm(formData: FormData): ParsedListingForm {
     propertyFloors,
     buildingFloors,
   })
-  const heating = String(formData.get("heating") ?? "").trim() || null
+  const heating = flags?.heating
+    ? airConditioningCodeFromStored(
+        String(formData.get("heating") ?? "").trim()
+      ) ?? null
+    : null
   const furnished = flags?.furnished
     ? parseFurnishedOption(formData.get("furnished"))
     : null
   const citySlug = String(formData.get("city") ?? "").trim()
   const districtSlug = String(formData.get("district") ?? "").trim()
   const neighborhoodSlug = String(formData.get("neighborhood") ?? "").trim()
-  const complexSlug = String(formData.get("complex") ?? "").trim() || null
-  const proposedComplexName =
-    String(formData.get("proposedComplexName") ?? "").trim() || null
-  const inComplex = String(formData.get("inComplex") ?? "") === "1"
+  const complexAllowed = categoryAllowsComplex(category)
+  const inComplex =
+    complexAllowed && String(formData.get("inComplex") ?? "") === "1"
+  const complexSlug = inComplex
+    ? String(formData.get("complex") ?? "").trim() || null
+    : null
+  const proposedComplexName = inComplex
+    ? String(formData.get("proposedComplexName") ?? "").trim() || null
+    : null
   const streetPrivate =
     String(formData.get("streetPrivate") ?? "").trim() || null
   const phoneRaw = String(formData.get("phone") ?? "").trim() || null
@@ -182,6 +195,9 @@ export function validateListingFormCore(
   }
   if (flags?.buildingFloors && data.buildingFloors == null) {
     return "اختر إجمالي طوابق المبنى من القائمة."
+  }
+  if (flags?.heating && data.heating == null) {
+    return "اختر نظام التكييف من القائمة."
   }
   if (flags?.furnished && data.furnished == null) {
     return "اختر حالة الأثاث من القائمة."

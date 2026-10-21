@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation"
 
 import { AgencyQuotaForm, InviteAgentForm } from "@/components/agency/agency-dashboard-forms"
+import { HistoryBackButton } from "@/components/navigation/history-back-button"
 import { Button } from "@/components/ui/button"
-import { leaveAgencyAction, removeAgencyAgentAction, revokeAgencyInvitationAction } from "@/lib/actions/agency"
+import { removeAgencyAgentAction, revokeAgencyInvitationAction } from "@/lib/actions/agency"
 import { getSessionUser } from "@/lib/auth"
 import { getActiveAgencyMembership, getAgencyMemberQuotaSnapshot } from "@/lib/agency-service"
 import { prisma } from "@/lib/db"
@@ -11,25 +12,8 @@ export default async function AgencyAgentsPage() {
   const user = await getSessionUser()
   if (!user) redirect("/login?next=/dashboard/agency/agents")
   const membership = await getActiveAgencyMembership(user.id)
-  if (!membership) redirect("/dashboard/agency")
+  if (!membership || membership.role !== "OWNER") redirect("/dashboard")
   const quotas = await getAgencyMemberQuotaSnapshot(membership.agencyId)
-
-  if (membership.role !== "OWNER") {
-    const own = quotas.find((row) => row.userId === user.id)
-    return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-semibold text-[#0F2744]">حصتي في الوكالة</h1>
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-3xl font-semibold tabular-nums text-[#0F2744]">{own?.used ?? 0}/{own?.quota ?? 0}</p>
-          <p className="mt-1 text-sm text-muted-foreground">إعلانات وكالة مستخدمة من حصتك الحالية</p>
-        </div>
-        <form action={leaveAgencyAction}>
-          <Button variant="destructive">مغادرة الوكالة</Button>
-          <p className="mt-2 text-xs text-muted-foreground">تبقى عقارات الوكالة محفوظة ويستطيع صاحبها إعادة تعيين المسؤول.</p>
-        </form>
-      </div>
-    )
-  }
 
   const invitations = await prisma.agencyInvitation.findMany({
     where: { agencyId: membership.agencyId, status: "PENDING", expiresAt: { gt: new Date() } },
@@ -39,6 +23,7 @@ export default async function AgencyAgentsPage() {
 
   return (
     <div className="space-y-5">
+      <HistoryBackButton fallbackHref="/dashboard/agency" />
       <header>
         <h1 className="text-xl font-semibold text-[#0F2744]">الوكلاء والحصص</h1>
         <p className="mt-1 text-sm text-muted-foreground">دوران فقط: صاحب الوكالة والوكيل.</p>
@@ -49,6 +34,7 @@ export default async function AgencyAgentsPage() {
           members={quotas.map((member) => ({
             userId: member.userId,
             name: member.user.name,
+            role: member.role,
             used: member.used,
             quota: member.quota,
           }))}
@@ -70,7 +56,7 @@ export default async function AgencyAgentsPage() {
               {member.role === "AGENT" ? (
                 <form action={removeAgencyAgentAction}>
                   <input type="hidden" name="membershipId" value={member.id} />
-                  <Button variant="destructive" size="sm">إزالة</Button>
+                  <Button type="submit" variant="destructive" size="sm">إزالة</Button>
                 </form>
               ) : null}
             </li>
@@ -87,7 +73,7 @@ export default async function AgencyAgentsPage() {
                 <span className="ms-auto text-xs text-muted-foreground">تنتهي {invite.expiresAt.toLocaleDateString("ar-IQ-u-nu-latn")}</span>
                 <form action={revokeAgencyInvitationAction}>
                   <input type="hidden" name="invitationId" value={invite.id} />
-                  <Button size="xs" variant="ghost">إلغاء</Button>
+                  <Button type="submit" size="xs" variant="ghost">إلغاء</Button>
                 </form>
               </li>
             ))}

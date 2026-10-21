@@ -43,7 +43,7 @@ export default async function AgenciesPage({ searchParams }: Props) {
       <AppSubHeader title="المكاتب العقارية" backHref="/" />
       <div className="space-y-3 px-3 py-4 md:px-4">
         <p className="text-sm text-muted-foreground">
-          ابحث عن وكيل عقاري حسب المنطقة أو المشروع السكني — الوكالات المعروضة
+          ابحث عن وكالة عقارية حسب المنطقة أو المشروع السكني — الوكالات المعروضة
           موافق عليها من الإدارة.
         </p>
         <AgenciesDirectoryClient

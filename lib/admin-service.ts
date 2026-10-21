@@ -64,27 +64,12 @@ export async function fetchAdminOverviewStats(): Promise<AdminOverviewStats> {
   }
 }
 
-/** If no ADMIN exists yet, promote the current signed-in user (local bootstrap). */
+/**
+ * Read the current session for admin pages. Admin grants are explicit and are
+ * never inferred from being the first user in an environment.
+ */
 export async function ensureBootstrapAdmin(): Promise<SessionUser | null> {
-  const user = await getSessionUser()
-  if (!user || !isDatabaseConfigured()) return user
-
-  try {
-    const adminCount = await prisma.user.count({ where: { role: "ADMIN" } })
-    if (adminCount === 0) {
-      const updated = await prisma.user.update({
-        where: { id: user.id },
-        data: { role: "ADMIN" },
-      })
-      return {
-        ...user,
-        role: updated.role,
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  return user
+  return getSessionUser()
 }
 
 export async function fetchAdminUsers(take = 100) {

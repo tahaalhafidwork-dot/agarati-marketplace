@@ -131,4 +131,14 @@ export function categoryIconKey(category: PropertyCategory): string {
   return category
 }
 
+/**
+ * A house listing is explicitly an independent home, so associating it with a
+ * residential complex would contradict the selected category.
+ */
+export function categoryAllowsComplex(
+  category: PropertyCategory | ""
+): boolean {
+  return category !== "" && category !== "house"
+}
+
 export type { DealType }

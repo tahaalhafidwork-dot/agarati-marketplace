@@ -70,8 +70,10 @@ export function AgencyLocationFields({
       />
       <div className="space-y-1.5">
         <Label htmlFor={addressName}>
-          عنوان المكتب{" "}
-          {required ? <span className="text-destructive">*</span> : "(اختياري)"}
+          عنوان المكتب
+          <span className="text-xs font-normal text-muted-foreground">
+            {required ? "(مطلوب)" : "(اختياري)"}
+          </span>
         </Label>
         <Input
           id={addressName}

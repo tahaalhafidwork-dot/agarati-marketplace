@@ -12,8 +12,13 @@ import {
 import {
   updateAdminUserCredentialsAction,
   type AdminAccountKind,
+  type AdminPlatformAccess,
   type AdminUserActionState,
 } from "@/lib/actions/admin-users"
+import {
+  ACCOUNT_IDENTITY_LABELS,
+  resolveAccountIdentity,
+} from "@/lib/account-identity"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,26 +46,25 @@ export type AdminUserCredentials = {
 }
 
 function accountKindFromUser(user: AdminUserCredentials): AdminAccountKind {
-  if (
-    user.accountType === "AGENCY" ||
-    user.agencyUpgradeStatus === "APPROVED"
-  ) {
-    return "AGENCY"
-  }
-  return user.role
+  const identity = resolveAccountIdentity({
+    accountType: user.accountType,
+    agencyMembershipRole: user.agencyMembership?.role,
+  })
+  if (identity === "AGENCY") return "AGENCY"
+  return "INDIVIDUAL"
 }
 
 function accountKindLabel(kind: AdminAccountKind): string {
   switch (kind) {
-    case "ADMIN":
-      return "مدير النظام"
-    case "SEEKER":
-      return "باحث عن عقار"
     case "AGENCY":
-      return "صاحب وكالة"
+      return ACCOUNT_IDENTITY_LABELS.AGENCY
     default:
-      return "معلن فردي"
+      return ACCOUNT_IDENTITY_LABELS.INDIVIDUAL
   }
+}
+
+function platformAccessLabel(access: AdminPlatformAccess): string {
+  return access === "ADMIN" ? "مدير النظام" : "مستخدم"
 }
 
 const initial: AdminUserActionState = {}
@@ -79,6 +83,9 @@ export function AdminUserCredentialsPanel({
   const [kind, setKind] = useState<AdminAccountKind>(() =>
     accountKindFromUser(user)
   )
+  const [platformAccess, setPlatformAccess] = useState<AdminPlatformAccess>(
+    user.role === "ADMIN" ? "ADMIN" : "USER"
+  )
   const [state, action, pending] = useActionState(
     updateAdminUserCredentialsAction,
     initial
@@ -96,6 +103,7 @@ export function AdminUserCredentialsPanel({
     setPhone(user.phone ?? "")
     setPassword("")
     setKind(accountKindFromUser(user))
+    setPlatformAccess(user.role === "ADMIN" ? "ADMIN" : "USER")
     setEditing(true)
   }
 
@@ -116,12 +124,13 @@ export function AdminUserCredentialsPanel({
         className="space-y-3 rounded-lg border border-[color:var(--brand-gold)]/30 bg-[#fffdf9] p-3"
       >
         <input type="hidden" name="userId" value={user.id} />
-        <input type="hidden" name="role" value={kind} />
+        <input type="hidden" name="accountKind" value={kind} />
+        <input type="hidden" name="platformAccess" value={platformAccess} />
 
         <div className="flex items-center justify-between gap-2">
           <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0F2744]">
             <KeyRound className="size-3.5 text-[color:var(--brand-gold)]" />
-            تعديل بيانات الدخول
+            تعديل الحساب والدخول
           </p>
           <button
             type="button"
@@ -192,35 +201,58 @@ export function AdminUserCredentialsPanel({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">نوع الحساب والصلاحية</Label>
+            <Label className="text-xs">نوع الحساب</Label>
             <Select
               value={kind}
               onValueChange={(v) =>
-                setKind((v as AdminAccountKind) || "LISTER")
+                setKind((v as AdminAccountKind) || "INDIVIDUAL")
               }
             >
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
-                  {(selected: AdminAccountKind | null) =>
-                    accountKindLabel(selected ?? kind)
+                  {(value: AdminAccountKind | null) =>
+                    value ? accountKindLabel(value) : "اختر نوع الحساب"
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="LISTER">معلن فردي</SelectItem>
-                <SelectItem value="SEEKER">باحث عن عقار</SelectItem>
-                <SelectItem value="AGENCY">صاحب وكالة</SelectItem>
-                <SelectItem value="ADMIN">مدير النظام</SelectItem>
+                <SelectItem value="INDIVIDUAL">{accountKindLabel("INDIVIDUAL")}</SelectItem>
+                <SelectItem value="AGENCY">{accountKindLabel("AGENCY")}</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">صلاحية النظام</Label>
+            <Select
+              value={platformAccess}
+              onValueChange={(value) =>
+                setPlatformAccess(
+                  (value as AdminPlatformAccess) || "USER"
+                )
+              }
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {(value: AdminPlatformAccess | null) =>
+                    value ? platformAccessLabel(value) : "اختر الصلاحية"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USER">{platformAccessLabel("USER")}</SelectItem>
+                <SelectItem value="ADMIN">{platformAccessLabel("ADMIN")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1 sm:col-span-2">
             <p className="text-[0.65rem] leading-5 text-muted-foreground">
-              الوكيل يُضاف من لوحة الوكالة، ولا يُمنح من صلاحية النظام العامة.
+              «الوكيل» ليس نوع حساب مستقلًا؛ هو حساب فردي يكتسب دوره فقط بعد قبول دعوة وكالة.
             </p>
             {user.agencyMembership ? (
               <p className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-[0.65rem] text-sky-900">
-                عضوية الوكالة: {user.agencyMembership.role === "OWNER" ? "صاحب" : "وكيل"}
-                {" · "}
-                {user.agencyMembership.agency.name}
+                {user.agencyMembership.role === "OWNER"
+                  ? `يمثل وكالة «${user.agencyMembership.agency.name}»`
+                  : `وكيل لدى «${user.agencyMembership.agency.name}»`}
               </p>
             ) : null}
           </div>
@@ -254,7 +286,7 @@ export function AdminUserCredentialsPanel({
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <p className="inline-flex items-center gap-1.5 text-[0.7rem] font-semibold text-[#0F2744]">
           <KeyRound className="size-3 text-[color:var(--brand-gold)]" />
-          رموز الدخول
+          الحساب والدخول
         </p>
         <button
           type="button"

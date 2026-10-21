@@ -23,6 +23,10 @@ import {
   toPublicListingCard,
   type PublicListingCard,
 } from "@/lib/listings"
+import {
+  airConditioningLabel,
+  airConditioningStoredAliases,
+} from "@/lib/air-conditioning"
 
 async function complexLabelsForRows(
   rows: { complexSlug: string | null }[]
@@ -105,6 +109,7 @@ function sampleCardsForQuery(query: ListingQuery): PublicListingCard[] {
         listingNumber: formatListingNumber(item.listingNumber),
         contactMethod: "ALL",
         services: item.services ?? [],
+        heating: airConditioningLabel(item.heating),
       },
       item.slug
     )
@@ -261,6 +266,9 @@ export function buildListingWhere(query: ListingQuery): Prisma.ListingWhereInput
       ? { gte: 4 }
       : query.propertyFloors
   }
+  if (query.airConditioning) {
+    where.heating = { in: airConditioningStoredAliases(query.airConditioning) }
+  }
   if (query.minPrice != null || query.maxPrice != null) {
     where.priceIqd = {}
     if (query.minPrice != null) where.priceIqd.gte = query.minPrice
@@ -352,7 +360,8 @@ export async function fetchPublicListings(
           take: 1,
         },
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
-        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true, createdById: true } },
+        assignedAgent: { select: { id: true, name: true } },
       },
       orderBy: orderByForQuery(query.sort),
       take,
@@ -412,6 +421,7 @@ export async function fetchListingById(
         listingNumber: formatListingNumber(sample.listingNumber),
         contactMethod: "ALL",
         services: sample.services ?? [],
+        heating: airConditioningLabel(sample.heating),
       },
       sample.slug
     )
@@ -424,7 +434,8 @@ export async function fetchListingById(
       include: {
         images: true,
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
-        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true, createdById: true } },
+        assignedAgent: { select: { id: true, name: true } },
       },
     })
     if (row) {
@@ -446,6 +457,7 @@ export async function fetchListingById(
           listingNumber: formatListingNumber(sample.listingNumber),
           contactMethod: "ALL",
           services: sample.services ?? [],
+          heating: airConditioningLabel(sample.heating),
         },
         sample.slug
       )
@@ -485,7 +497,8 @@ export async function fetchListingsByAdvertiser(
       include: {
         images: true,
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
-        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true, createdById: true } },
+        assignedAgent: { select: { id: true, name: true } },
       },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take: PAGE_SIZE,
@@ -498,7 +511,7 @@ export async function fetchListingsByAdvertiser(
         name: owner.name,
         kind: "person",
         isDemo: false,
-        subtitle: "معلن فردي",
+        subtitle: "حساب فردي",
       },
       listings: rows.map((r) =>
         toPublicListingCard(r, { complexLabels: labels })
@@ -525,7 +538,8 @@ export async function fetchListingsByAgency(
       include: {
         images: true,
         owner: { select: { id: true, name: true, phone: true, whatsapp: true } },
-        agency: { select: { slug: true, name: true, phone: true, whatsapp: true } },
+        agency: { select: { slug: true, name: true, phone: true, whatsapp: true, createdById: true } },
+        assignedAgent: { select: { id: true, name: true } },
       },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take: PAGE_SIZE,

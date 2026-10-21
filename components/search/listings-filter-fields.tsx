@@ -34,6 +34,10 @@ import {
 } from "@/lib/listing-query"
 import type { DealType, PropertyCategory } from "@/lib/sample-listings"
 import { cn } from "@/lib/utils"
+import {
+  AIR_CONDITIONING_OPTIONS,
+  type AirConditioningCode,
+} from "@/lib/air-conditioning"
 
 /** MVP deals only — short-stay rental is deferred. */
 export const filterDealOptions: DealType[] = ["sale", "rent", "daily"]
@@ -45,6 +49,7 @@ export type ListingsFilterDraft = {
   rooms: string
   floor: string
   propertyFloors: string
+  airConditioning?: AirConditioningCode
   minPrice: string
   maxPrice: string
   minArea: string
@@ -57,19 +62,28 @@ function NumericFilterSelect({
   options,
   formatOption = toEnglishNumber,
   onChange,
+  compact = false,
 }: {
   label: string
   value: string
   options: readonly number[]
   formatOption?: (value: number) => string
   onChange: (value: string) => void
+  compact?: boolean
 }) {
   return (
     <Select
       value={value || "any"}
       onValueChange={(next) => onChange(next === "any" ? "" : (next ?? ""))}
     >
-      <SelectTrigger aria-label={label} className="h-11 w-full rounded-xl bg-card">
+      <SelectTrigger
+        aria-label={label}
+        className={cn(
+          "h-11 w-full rounded-xl bg-card",
+          compact &&
+            "h-10 rounded-full border-[#0F2744]/12 bg-white px-3 text-xs font-medium text-[#0F2744] shadow-[0_2px_8px_rgba(15,39,68,0.035)] [&_svg]:text-[#9A7854]"
+        )}
+      >
         <SelectValue>
           {(selectedValue: string | null) =>
             selectedValue === "any" || selectedValue == null
@@ -97,6 +111,7 @@ type Props = {
   value: ListingsFilterDraft
   onChange: (next: ListingsFilterDraft) => void
   className?: string
+  variant?: "default" | "sheet"
   category?: PropertyCategory
   catalogProjects?: Array<{
     slug: string
@@ -110,13 +125,31 @@ type Props = {
 function FilterSection({
   title,
   children,
+  variant = "default",
 }: {
   title: string
   children: ReactNode
+  variant?: "default" | "sheet"
 }) {
   return (
-    <section className="space-y-2.5 rounded-2xl border border-border/80 bg-muted/25 p-3.5">
-      <p className="text-xs font-semibold text-foreground">{title}</p>
+    <section
+      className={cn(
+        "min-w-0 space-y-2.5",
+        variant === "sheet"
+          ? "space-y-2 border-b border-[#0F2744]/8 py-3 last:border-b-0"
+          : "rounded-2xl border border-border/80 bg-muted/25 p-3.5"
+      )}
+    >
+      <div>
+        <p
+          className={cn(
+            "font-semibold text-foreground",
+            variant === "sheet" ? "text-[0.72rem] text-[#0F2744]" : "text-xs"
+          )}
+        >
+          {title}
+        </p>
+      </div>
       {children}
     </section>
   )
@@ -126,6 +159,7 @@ export function ListingsFilterFields({
   value,
   onChange,
   className,
+  variant = "default",
   category,
   catalogProjects,
 }: Props) {
@@ -134,10 +168,21 @@ export function ListingsFilterFields({
   const categoryDealOptions = dealOptionsForCategory(category ?? "")
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <FilterSection title="نوع الصفقة">
+    <div
+      className={cn(
+        "w-full min-w-0 max-w-full",
+        variant === "sheet" ? "space-y-0" : "space-y-3",
+        className
+      )}
+    >
+      <FilterSection title="نوع الصفقة" variant={variant}>
         <div
-          className="grid grid-cols-3 gap-1 rounded-xl bg-card p-1 ring-1 ring-border"
+          className={cn(
+            "grid min-w-0 grid-cols-3 gap-1 p-1",
+            variant === "sheet"
+              ? "rounded-full border border-[#0F2744]/10 bg-white shadow-[0_2px_8px_rgba(15,39,68,0.035)]"
+              : "rounded-xl bg-card ring-1 ring-border"
+          )}
           role="group"
           aria-label="نوع الصفقة"
         >
@@ -149,10 +194,15 @@ export function ListingsFilterFields({
                 type="button"
                 onClick={() => patch({ deal: selected ? undefined : key })}
                 className={cn(
-                  "rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors",
+                  "min-w-0 px-1.5 py-2.5 text-xs font-semibold transition-colors",
+                  variant === "sheet" ? "rounded-full" : "rounded-lg",
                   selected
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? variant === "sheet"
+                      ? "bg-[#0F2744] text-white shadow-[0_3px_10px_rgba(15,39,68,0.16)]"
+                      : "bg-primary text-primary-foreground shadow-sm"
+                    : variant === "sheet"
+                      ? "text-[#0F2744]/60 hover:bg-[#0F2744]/5 hover:text-[#0F2744]"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 {label}
@@ -163,7 +213,7 @@ export function ListingsFilterFields({
       </FilterSection>
 
       {category === "land" ? (
-        <FilterSection title="نوع الأرض">
+        <FilterSection title="نوع الأرض" variant={variant}>
           <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="نوع الأرض">
             {LAND_USE_OPTIONS.map((option) => {
               const selected = value.landUse === option.value
@@ -175,10 +225,15 @@ export function ListingsFilterFields({
                     patch({ landUse: selected ? undefined : option.value })
                   }
                   className={cn(
-                    "rounded-xl border px-2.5 py-2.5 text-xs font-semibold transition-colors last:col-span-2",
+                    "border px-2.5 py-2.5 text-xs font-semibold transition-colors last:col-span-2",
+                    variant === "sheet" ? "rounded-full" : "rounded-xl",
                     selected
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                      : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? variant === "sheet"
+                        ? "border-[#0F2744] bg-[#0F2744] text-white shadow-sm"
+                        : "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : variant === "sheet"
+                        ? "border-[#0F2744]/10 bg-white text-[#0F2744]/70 shadow-[0_2px_8px_rgba(15,39,68,0.03)] hover:border-[#B8956C]/45"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
                   {option.label}
@@ -189,21 +244,24 @@ export function ListingsFilterFields({
         </FilterSection>
       ) : null}
 
-      <FilterSection title="الموقع">
+      <FilterSection title="الموقع" variant={variant}>
         <LocationFilterFields
           value={value.location}
           onChange={(location) => patch({ location })}
+          layout={variant === "sheet" ? "grid" : "stack"}
+          compact={variant === "sheet"}
           catalogProjects={catalogProjects}
         />
       </FilterSection>
 
       {category && CATEGORY_FIELD_FLAGS[category].rooms ? (
-        <FilterSection title="عدد الغرف">
+        <FilterSection title="عدد الغرف" variant={variant}>
           <NumericFilterSelect
             label="عدد الغرف"
             value={value.rooms}
             options={roomCountOptionsForCategory(category)}
             onChange={(rooms) => patch({ rooms })}
+            compact={variant === "sheet"}
           />
           <p className="text-[0.65rem] text-muted-foreground">
             {category === "office"
@@ -214,13 +272,14 @@ export function ListingsFilterFields({
       ) : null}
 
       {category && CATEGORY_FIELD_FLAGS[category].floorNumber ? (
-        <FilterSection title="طابق الوحدة">
+        <FilterSection title="طابق الوحدة" variant={variant}>
           <NumericFilterSelect
             label="طابق الوحدة"
             value={value.floor}
             options={filterFloorOptions}
             formatOption={formatFloorNumber}
             onChange={(floor) => patch({ floor })}
+            compact={variant === "sheet"}
           />
           <p className="text-[0.65rem] text-muted-foreground">
             «أرضي» للطابق 0، والأرقام السالبة للأقبية.
@@ -229,7 +288,7 @@ export function ListingsFilterFields({
       ) : null}
 
       {category && CATEGORY_FIELD_FLAGS[category].propertyFloors ? (
-        <FilterSection title="عدد طوابق العقار">
+        <FilterSection title="عدد طوابق العقار" variant={variant}>
           <NumericFilterSelect
             label="عدد طوابق العقار"
             value={value.propertyFloors}
@@ -238,6 +297,7 @@ export function ListingsFilterFields({
               formatPropertyFloors(floorCount, category)
             }
             onChange={(propertyFloors) => patch({ propertyFloors })}
+            compact={variant === "sheet"}
           />
           <p className="text-[0.65rem] text-muted-foreground">
             {category === "house" || category === "villa"
@@ -249,7 +309,42 @@ export function ListingsFilterFields({
         </FilterSection>
       ) : null}
 
-      <FilterSection title="السعر (د.ع)">
+      {category && CATEGORY_FIELD_FLAGS[category].heating ? (
+        <FilterSection title="نظام التكييف" variant={variant}>
+          <Select
+            value={value.airConditioning ?? "any"}
+            onValueChange={(next) =>
+              patch({
+                airConditioning:
+                  next === "any"
+                    ? undefined
+                    : (next as AirConditioningCode | undefined),
+              })
+            }
+          >
+            <SelectTrigger
+              aria-label="نظام التكييف"
+              className={cn(
+                "h-11 w-full rounded-xl bg-card",
+                variant === "sheet" &&
+                  "h-10 rounded-full border-[#0F2744]/12 bg-white px-3 text-xs font-medium text-[#0F2744] shadow-[0_2px_8px_rgba(15,39,68,0.035)] [&_svg]:text-[#9A7854]"
+              )}
+            >
+              <SelectValue placeholder="الكل" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">الكل</SelectItem>
+              {AIR_CONDITIONING_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterSection>
+      ) : null}
+
+      <FilterSection title="السعر (د.ع)" variant={variant}>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <Label
@@ -264,7 +359,11 @@ export function ListingsFilterFields({
               placeholder="الأقل"
               value={value.minPrice}
               onChange={(e) => patch({ minPrice: e.target.value })}
-              className="h-11 rounded-xl"
+              className={cn(
+                "h-11 rounded-xl",
+                variant === "sheet" &&
+                  "h-10 rounded-full border-[#0F2744]/12 bg-white px-3 text-xs text-[#0F2744] shadow-[0_2px_8px_rgba(15,39,68,0.035)] placeholder:text-[#8A837D] focus-visible:border-[#B8956C]/65 focus-visible:ring-[#B8956C]/15"
+              )}
             />
           </div>
           <div className="space-y-1">
@@ -280,7 +379,11 @@ export function ListingsFilterFields({
               placeholder="الأعلى"
               value={value.maxPrice}
               onChange={(e) => patch({ maxPrice: e.target.value })}
-              className="h-11 rounded-xl"
+              className={cn(
+                "h-11 rounded-xl",
+                variant === "sheet" &&
+                  "h-10 rounded-full border-[#0F2744]/12 bg-white px-3 text-xs text-[#0F2744] shadow-[0_2px_8px_rgba(15,39,68,0.035)] placeholder:text-[#8A837D] focus-visible:border-[#B8956C]/65 focus-visible:ring-[#B8956C]/15"
+              )}
             />
           </div>
         </div>
@@ -297,7 +400,7 @@ export function ListingsFilterFields({
         })()}
       </FilterSection>
 
-      <FilterSection title="المساحة م²">
+      <FilterSection title="المساحة م²" variant={variant}>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <Label
@@ -312,7 +415,11 @@ export function ListingsFilterFields({
               placeholder="80"
               value={value.minArea}
               onChange={(e) => patch({ minArea: e.target.value })}
-              className="h-11 rounded-xl"
+              className={cn(
+                "h-11 rounded-xl",
+                variant === "sheet" &&
+                  "h-10 rounded-full border-[#0F2744]/12 bg-white px-3 text-xs text-[#0F2744] shadow-[0_2px_8px_rgba(15,39,68,0.035)] placeholder:text-[#8A837D] focus-visible:border-[#B8956C]/65 focus-visible:ring-[#B8956C]/15"
+              )}
             />
           </div>
           <div className="space-y-1">
@@ -328,7 +435,11 @@ export function ListingsFilterFields({
               placeholder="300"
               value={value.maxArea}
               onChange={(e) => patch({ maxArea: e.target.value })}
-              className="h-11 rounded-xl"
+              className={cn(
+                "h-11 rounded-xl",
+                variant === "sheet" &&
+                  "h-10 rounded-full border-[#0F2744]/12 bg-white px-3 text-xs text-[#0F2744] shadow-[0_2px_8px_rgba(15,39,68,0.035)] placeholder:text-[#8A837D] focus-visible:border-[#B8956C]/65 focus-visible:ring-[#B8956C]/15"
+              )}
             />
           </div>
         </div>
@@ -360,6 +471,7 @@ export function draftFromQuery(query: {
   rooms?: number
   floor?: number
   propertyFloors?: number
+  airConditioning?: AirConditioningCode
   minPrice?: number
   maxPrice?: number
   minArea?: number
@@ -391,6 +503,10 @@ export function draftFromQuery(query: {
       query.category && CATEGORY_FIELD_FLAGS[query.category].propertyFloors
         ? query.propertyFloors?.toString() ?? ""
         : "",
+    airConditioning:
+      query.category && CATEGORY_FIELD_FLAGS[query.category].heating
+        ? query.airConditioning
+        : undefined,
     minPrice: query.minPrice?.toString() ?? "",
     maxPrice: query.maxPrice?.toString() ?? "",
     minArea: query.minArea?.toString() ?? "",
@@ -406,6 +522,7 @@ export function emptyFilterDraft(): ListingsFilterDraft {
     rooms: "",
     floor: "",
     propertyFloors: "",
+    airConditioning: undefined,
     minPrice: "",
     maxPrice: "",
     minArea: "",
@@ -431,6 +548,7 @@ export function draftToQueryPatch(draft: ListingsFilterDraft) {
     propertyFloors: draft.propertyFloors
       ? Number(draft.propertyFloors)
       : undefined,
+    airConditioning: draft.airConditioning,
     minPrice: parseBound(draft.minPrice),
     maxPrice: parseBound(draft.maxPrice),
     minArea: parseBound(draft.minArea),

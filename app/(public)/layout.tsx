@@ -5,7 +5,9 @@ import { SiteFooter } from "@/components/layout/site-footer"
 import { SiteHeader } from "@/components/layout/site-header"
 import { UnreadMessagesProvider } from "@/components/layout/unread-messages-provider"
 import { GuestFavoritesSync } from "@/components/favorites/guest-favorites-sync"
+import { getActiveAgencyMembership } from "@/lib/agency-service"
 import { getSessionUser } from "@/lib/auth"
+import { isDatabaseConfigured } from "@/lib/db"
 
 export default async function PublicLayout({
   children,
@@ -16,8 +18,20 @@ export default async function PublicLayout({
   // Unread is loaded client-side — keeps public TTFB free of 2 COUNT queries.
   const unreadCount = 0
   const signedIn = Boolean(user)
+  let hasActiveAgencyMembership = false
+  if (user && isDatabaseConfigured()) {
+    try {
+      hasActiveAgencyMembership = Boolean(
+        await getActiveAgencyMembership(user.id)
+      )
+    } catch {
+      // Fail closed: do not advertise an unavailable account conversion flow.
+      hasActiveAgencyMembership = true
+    }
+  }
   const showAgencyUpgrade = Boolean(
     user &&
+      !hasActiveAgencyMembership &&
       user.accountType !== "AGENCY" &&
       user.agencyUpgradeStatus !== "APPROVED" &&
       user.agencyUpgradeStatus !== "PENDING"
