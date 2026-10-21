@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import {
   ArrowUpDown,
   Check,
-  RotateCcw,
   Search,
   SlidersHorizontal,
   X,
@@ -257,56 +256,74 @@ function FilterSheet({
     onOpenChange(next)
   }
 
+  const draftCount = countActiveFilters({
+    category: query.category,
+    sort: query.sort,
+    ...draftToQueryPatch(draft),
+  })
+
   return (
     <Sheet open={open} onOpenChange={onOpen}>
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className="flex max-h-[88vh] flex-col gap-0 rounded-t-2xl border-border p-0"
+        className="inset-x-0 z-[70] flex max-h-[80dvh] w-screen min-w-0 max-w-[100vw] flex-col gap-0 overflow-hidden rounded-t-[1.5rem] border-x-0 border-t border-[#B8956C]/22 bg-[#F8F5F0] p-0 shadow-[0_-18px_55px_rgba(15,39,68,0.18)]"
       >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border" aria-hidden />
-        <SheetHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b border-border px-4 py-3 text-start">
-          <div>
-            <SheetTitle className="text-base font-semibold text-foreground">
-              تصفية النتائج
-            </SheetTitle>
-            <SheetDescription className="text-xs text-muted-foreground">
-              حدّد الشروط ثم اعرض النتائج
-            </SheetDescription>
+        <SheetHeader className="relative min-w-0 gap-0 border-b border-[#0F2744]/8 bg-white px-4 pb-3.5 pt-2 text-start">
+          <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-[#0F2744]/14" aria-hidden />
+          <div className="flex items-center gap-2.5 pe-11">
+            <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0F2744]/6 text-[#9A7854]">
+              <SlidersHorizontal className="size-3.5" strokeWidth={1.9} />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <SheetTitle className="text-sm font-bold text-[#0F2744]">
+                  تصفية النتائج
+                </SheetTitle>
+                {draftCount > 0 ? (
+                  <span className="rounded-full bg-[#B8956C]/16 px-1.5 py-0.5 text-[0.6rem] font-bold text-[#876541]">
+                    {draftCount}
+                  </span>
+                ) : null}
+              </div>
+              <SheetDescription className="mt-0.5 text-[0.65rem] text-[#6B6560]">
+                حدّد الخيارات ثم اعرض النتائج
+              </SheetDescription>
+            </div>
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="inline-flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition hover:bg-muted/80 hover:text-foreground"
+            className="absolute left-4 bottom-3 inline-flex size-8 items-center justify-center rounded-full bg-[#0F2744]/5 text-[#0F2744]/60 transition hover:bg-[#0F2744]/9 hover:text-[#0F2744]"
             aria-label="إغلاق"
           >
-            <X className="size-4" />
+            <X className="size-4" strokeWidth={1.8} />
           </button>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <div className="min-h-0 w-full min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-1 [scrollbar-width:thin]">
           <ListingsFilterFields
             value={draft}
             onChange={setDraft}
+            variant="sheet"
             category={query.category}
             catalogProjects={catalogProjects}
           />
         </div>
 
-        <SheetFooter className="flex-row gap-2 border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row">
+        <SheetFooter className="min-w-0 flex-row items-center gap-3 border-t border-[#0F2744]/8 bg-white/96 px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-6px_18px_rgba(15,39,68,0.055)] backdrop-blur-sm sm:flex-row">
           <Button
             type="button"
-            variant="outline"
-            className="h-11 flex-1 gap-1.5"
+            variant="ghost"
+            className="h-10 shrink-0 gap-1.5 px-1 text-xs font-semibold text-[#0F2744] underline decoration-[#B8956C] decoration-1 underline-offset-4 hover:bg-transparent"
             onClick={() => setDraft(emptyFilterDraft())}
             disabled={pending}
           >
-            <RotateCcw className="size-3.5" />
-            إعادة ضبط
+            مسح الكل
           </Button>
           <Button
             type="button"
-            className="h-11 flex-[1.35] gap-1.5"
+            className="h-10 min-w-0 flex-1 gap-2 rounded-full border border-[#B8956C]/35 bg-[linear-gradient(135deg,#0F2744_0%,#193B5E_100%)] text-xs font-bold text-white shadow-[0_5px_14px_rgba(15,39,68,0.18)] hover:bg-[#16385B]"
             onClick={() =>
               onApply({
                 ...query,
@@ -317,6 +334,11 @@ function FilterSheet({
           >
             <Search className="size-3.5" />
             عرض النتائج
+            {draftCount > 0 ? (
+              <span className="rounded-full bg-white/12 px-1.5 py-0.5 text-[0.62rem] font-bold text-[#E2C79D]">
+                {draftCount}
+              </span>
+            ) : null}
           </Button>
         </SheetFooter>
       </SheetContent>
