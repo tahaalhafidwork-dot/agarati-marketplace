@@ -59,7 +59,7 @@ async function fetchProviderJson(input: {
       cache: "no-store",
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (input.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
       throw new AgarlyProviderError("TIMEOUT", "Provider request timed out")
     }
     throw new AgarlyProviderError("UNAVAILABLE", "Provider request failed")

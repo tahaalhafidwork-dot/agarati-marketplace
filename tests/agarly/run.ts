@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 
 import { AgarlyProviderError, createKiloProvider, getConfiguredAgarlyProvider } from "../../lib/agarly/provider"
+import { AgarlyRequestBodyError, readAgarlyJsonBody } from "../../lib/agarly/http"
 import { sanitizePromptForProvider } from "../../lib/agarly/prompt"
 import {
   AGARLY_QUOTA_LIMIT,
@@ -78,6 +79,17 @@ async function run() {
   const sanitized = sanitizePromptForProvider("شقة ٣ غرف، اتصل 07701234567 أو me@example.com")
   assert.match(sanitized, /3 غرف/)
   assert.doesNotMatch(sanitized, /07701234567|me@example\.com/)
+
+  await assert.rejects(
+    readAgarlyJsonBody(
+      new Request("https://agarati.example/api/agarly/search", {
+        method: "POST",
+        body: JSON.stringify({ prompt: "x".repeat(9_000) }),
+      }),
+    ),
+    (error: unknown) =>
+      error instanceof AgarlyRequestBodyError && error.code === "BODY_TOO_LARGE",
+  )
 
   const listingWhere = buildAgarlyListingWhere(filters)
   const listingJson = JSON.stringify(listingWhere)

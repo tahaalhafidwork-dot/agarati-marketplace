@@ -2,7 +2,12 @@ import { z } from "zod"
 
 import { requireSessionUser } from "@/lib/auth"
 import { isDatabaseConfigured, isDatabaseReachable } from "@/lib/db"
-import { agarlyJson, isSameOriginRequest, requestBodyTooLarge } from "@/lib/agarly/http"
+import {
+  AgarlyRequestBodyError,
+  agarlyJson,
+  isSameOriginRequest,
+  readAgarlyJsonBody,
+} from "@/lib/agarly/http"
 import { getConfiguredAgarlyProvider, AgarlyProviderError } from "@/lib/agarly/provider"
 import { hashSearchPrompt, normalizeSearchPrompt, sanitizePromptForProvider } from "@/lib/agarly/prompt"
 import {
@@ -40,10 +45,6 @@ export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return agarlyJson({ error: "طلب غير مسموح.", code: "ORIGIN" }, { status: 403 })
   }
-  if (requestBodyTooLarge(request)) {
-    return agarlyJson({ error: "حجم الطلب أكبر من المسموح.", code: "BODY_TOO_LARGE" }, { status: 413 })
-  }
-
   let user
   try {
     user = await requireSessionUser()
@@ -53,8 +54,11 @@ export async function POST(request: Request) {
 
   let body: z.infer<typeof bodySchema>
   try {
-    body = bodySchema.parse(await request.json())
-  } catch {
+    body = bodySchema.parse(await readAgarlyJsonBody(request))
+  } catch (error) {
+    if (error instanceof AgarlyRequestBodyError && error.code === "BODY_TOO_LARGE") {
+      return agarlyJson({ error: "حجم الطلب أكبر من المسموح.", code: error.code }, { status: 413 })
+    }
     return agarlyJson({ error: "اكتب وصفًا واضحًا لا يتجاوز 500 حرف.", code: "INVALID_INPUT" }, { status: 400 })
   }
 
