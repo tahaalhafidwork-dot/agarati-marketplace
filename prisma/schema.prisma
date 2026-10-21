@@ -148,6 +148,12 @@ enum ListingBillingState {
   SUBSCRIPTION_REQUIRED
 }
 
+enum AgarlySearchStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                     String              @id // matches Supabase auth.users.id (UUID)
   email                  String              @unique
@@ -195,6 +201,28 @@ model User {
   assignedAgencyListings    Listing[]                @relation("ListingAssignedAgent")
   requestedPayments         PaymentRequest[]         @relation("PaymentRequester")
   approvedPayments          PaymentRequest[]         @relation("PaymentApprover")
+  agarlySearches            AgarlySearchUsage[]
+}
+
+/// Server-side audit and quota ledger for Agarly AI. The raw search prompt is
+/// deliberately never stored; promptHash only supports abuse investigation.
+model AgarlySearchUsage {
+  id          String             @id @default(cuid())
+  requestId   String             @unique
+  userId      String
+  promptHash  String
+  provider    String
+  model       String
+  status      AgarlySearchStatus @default(PROCESSING)
+  filters     Json?
+  errorCode   String?
+  createdAt   DateTime           @default(now())
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Listing {
