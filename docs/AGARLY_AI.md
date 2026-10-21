@@ -9,8 +9,8 @@ IDs, email addresses, and raw prompts are not sent or persisted.
 
 ```text
 AI_PROVIDER=kilo
+AI_MODEL=kilo-auto/free
 KILO_API_KEY=server-only-secret
-KILO_MODEL=kilo-auto/free
 AI_TIMEOUT_MS=12000
 ```
 
@@ -18,9 +18,12 @@ To switch providers without changing UI or search code:
 
 ```text
 AI_PROVIDER=openai
+AI_MODEL=gpt-5-mini
 OPENAI_API_KEY=server-only-secret
-OPENAI_MODEL=gpt-5-mini
 ```
+
+`KILO_MODEL` and `OPENAI_MODEL` remain optional provider-specific overrides;
+normally `AI_MODEL` is the only model setting that needs to change.
 
 Never expose either API key through a `NEXT_PUBLIC_` variable. Kilo's free
 router may use providers that log prompts, so Agarly redacts obvious email and

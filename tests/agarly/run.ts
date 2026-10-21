@@ -3,7 +3,11 @@ import { readFile } from "node:fs/promises"
 
 import { AgarlyProviderError, createKiloProvider, getConfiguredAgarlyProvider } from "../../lib/agarly/provider"
 import { AgarlyRequestBodyError, readAgarlyJsonBody } from "../../lib/agarly/http"
-import { sanitizePromptForProvider } from "../../lib/agarly/prompt"
+import {
+  applyPromptPriceHints,
+  parseIraqiPriceExpression,
+  sanitizePromptForProvider,
+} from "../../lib/agarly/prompt"
 import {
   AGARLY_QUOTA_LIMIT,
   reserveAgarlyRequest,
@@ -79,6 +83,18 @@ async function run() {
   const sanitized = sanitizePromptForProvider("شقة ٣ غرف، اتصل 07701234567 أو me@example.com")
   assert.match(sanitized, /3 غرف/)
   assert.doesNotMatch(sanitized, /07701234567|me@example\.com/)
+  assert.equal(parseIraqiPriceExpression("٣٠٠ مليون"), 300_000_000)
+  assert.equal(parseIraqiPriceExpression("1٫5 مليار"), 1_500_000_000)
+  assert.equal(parseIraqiPriceExpression("750 ألف"), 750_000)
+  const emptyFilters = normalizeAgarlyFilters({ intent: "listings" })
+  assert.equal(
+    applyPromptPriceHints(emptyFilters, "فيلا بسعر أقل من ٣٠٠ مليون دينار").maxPriceIqd,
+    300_000_000,
+  )
+  assert.equal(
+    applyPromptPriceHints(emptyFilters, "شقة مساحتها حتى 200 متر").maxPriceIqd,
+    null,
+  )
 
   await assert.rejects(
     readAgarlyJsonBody(
@@ -97,6 +113,12 @@ async function run() {
   assert.match(listingJson, /"visibilityPaused":false/)
   assert.match(listingJson, /"expiresAt"/)
   assert.match(listingJson, /"subscriptions"/)
+  const houseFloorsWhere = buildAgarlyListingWhere({
+    ...filters,
+    category: "house",
+    propertyFloors: 4,
+  })
+  assert.deepEqual(houseFloorsWhere.propertyFloors, { gte: 4 })
   assert.equal(buildAgarlyProjectWhere(filters).status, "APPROVED")
   assert.equal(buildAgarlyAgencyWhere(filters, null).status, "APPROVED")
   assert.deepEqual(buildAgarlyAgencyWhere(filters, []).id, { in: [] })
@@ -125,17 +147,46 @@ async function run() {
 
   const oldProvider = process.env.AI_PROVIDER
   const oldKiloKey = process.env.KILO_API_KEY
+  const oldAiModel = process.env.AI_MODEL
   process.env.AI_PROVIDER = "kilo"
   process.env.KILO_API_KEY = "test-key"
+  process.env.AI_MODEL = "kilo-test/model"
   assert.equal(getConfiguredAgarlyProvider().name, "kilo")
+  assert.equal(getConfiguredAgarlyProvider().model, "kilo-test/model")
   delete process.env.KILO_API_KEY
   assert.throws(() => getConfiguredAgarlyProvider(), AgarlyProviderError)
   if (oldProvider === undefined) delete process.env.AI_PROVIDER
   else process.env.AI_PROVIDER = oldProvider
   if (oldKiloKey === undefined) delete process.env.KILO_API_KEY
   else process.env.KILO_API_KEY = oldKiloKey
+  if (oldAiModel === undefined) delete process.env.AI_MODEL
+  else process.env.AI_MODEL = oldAiModel
 
   const previousFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    Response.json({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            intent: "listings",
+            category: "villa",
+            deal: "sale",
+            city: "أربيل",
+            maxPriceIqd: 300_000_000,
+            insideComplex: true,
+          }),
+        },
+      }],
+    })
+  const extracted = await createKiloProvider("test-key").extractFilters(
+    "فيلا داخل مجمع في أربيل بأقل من 300 مليون دينار",
+    new AbortController().signal,
+  )
+  assert.equal(extracted.category, "villa")
+  assert.equal(extracted.city, "erbil")
+  assert.equal(extracted.maxPriceIqd, 300_000_000)
+  assert.equal(extracted.insideComplex, true)
+
   globalThis.fetch = async () => new Response("{}", { status: 503 })
   await assert.rejects(
     createKiloProvider("test-key").extractFilters("شقة في أربيل", new AbortController().signal),
@@ -147,6 +198,7 @@ async function run() {
   assert.match(ui, /sm:grid-cols-2/)
   assert.match(ui, /lg:grid-cols-3/)
   assert.match(ui, /BrowseListingsMapLazy/)
+  assert.match(ui, /AgarlyFilterEditor/)
   assert.match(ui, /\/api\/agarly\/results/)
 
   console.log("Agarly AI extraction, privacy, visibility, quota, provider and UI contracts OK")

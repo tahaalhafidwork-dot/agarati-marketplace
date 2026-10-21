@@ -28,7 +28,7 @@ const bodySchema = z
   })
   .strict()
 
-function providerErrorResponse(error: AgarlyProviderError) {
+function providerErrorResponse(error: AgarlyProviderError, quota?: unknown) {
   const status = error.code === "RATE_LIMITED" ? 429 : error.code === "BAD_RESPONSE" ? 502 : 503
   const message =
     error.code === "TIMEOUT"
@@ -38,7 +38,16 @@ function providerErrorResponse(error: AgarlyProviderError) {
         : error.code === "NOT_CONFIGURED"
           ? "البحث الذكي غير مهيأ على الخادم بعد."
           : "تعذر تحليل الطلب الآن. حاول مجددًا بعد قليل."
-  return agarlyJson({ error: message, code: error.code }, { status })
+  return agarlyJson({ error: message, code: error.code, quota }, { status })
+}
+
+function retryAfterLabel(totalSeconds: number): string {
+  const totalMinutes = Math.max(1, Math.ceil(totalSeconds / 60))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (!hours) return `${minutes} دقيقة`
+  if (!minutes) return `${hours} ساعة`
+  return `${hours} ساعة و${minutes} دقيقة`
 }
 
 export async function POST(request: Request) {
@@ -97,9 +106,10 @@ export async function POST(request: Request) {
       : 10_800
     const response = agarlyJson(
       {
-        error: "استخدمت 10 عمليات بحث ذكية خلال آخر 3 ساعات.",
+        error: `استخدمت عمليات البحث الذكي المتاحة حاليًا. يمكنك المحاولة مجددًا بعد ${retryAfterLabel(retrySeconds)}.`,
         code: "QUOTA_EXCEEDED",
         quota: reservation.quota,
+        retryAfterSeconds: retrySeconds,
       },
       { status: 429 },
     )
@@ -147,7 +157,7 @@ export async function POST(request: Request) {
         ? error
         : new AgarlyProviderError("UNAVAILABLE", "Agarly request failed")
     await failAgarlyUsage(body.requestId, providerError.code).catch(() => undefined)
-    return providerErrorResponse(providerError)
+    return providerErrorResponse(providerError, reservation.quota)
   } finally {
     clearTimeout(timeout)
   }

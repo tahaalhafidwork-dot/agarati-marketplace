@@ -3,7 +3,7 @@ import {
   normalizeAgarlyFilters,
   type AgarlyFilters,
 } from "@/lib/agarly/schema"
-import { agarlySystemPrompt } from "@/lib/agarly/prompt"
+import { agarlySystemPrompt, applyPromptPriceHints } from "@/lib/agarly/prompt"
 
 export type AgarlyProviderName = "kilo" | "openai"
 
@@ -116,7 +116,10 @@ export function createKiloProvider(apiKey: string, model = "kilo-auto/free"): Ag
           ],
         },
       })
-      return normalizeAgarlyFilters(jsonFromContent(chatContent(payload)))
+      return applyPromptPriceHints(
+        normalizeAgarlyFilters(jsonFromContent(chatContent(payload))),
+        prompt,
+      )
     },
   }
 }
@@ -146,22 +149,32 @@ export function createOpenAiProvider(apiKey: string, model = "gpt-5-mini"): Agar
           },
         },
       })
-      return normalizeAgarlyFilters(jsonFromContent(chatContent(payload)))
+      return applyPromptPriceHints(
+        normalizeAgarlyFilters(jsonFromContent(chatContent(payload))),
+        prompt,
+      )
     },
   }
 }
 
 export function getConfiguredAgarlyProvider(): AgarlyProvider {
   const selected = process.env.AI_PROVIDER?.trim().toLowerCase() || "kilo"
+  const sharedModel = process.env.AI_MODEL?.trim()
   if (selected === "openai") {
     const key = process.env.OPENAI_API_KEY?.trim()
     if (!key) throw new AgarlyProviderError("NOT_CONFIGURED", "OPENAI_API_KEY is missing")
-    return createOpenAiProvider(key, process.env.OPENAI_MODEL?.trim() || undefined)
+    return createOpenAiProvider(
+      key,
+      process.env.OPENAI_MODEL?.trim() || sharedModel || "gpt-5-mini",
+    )
   }
   if (selected !== "kilo") {
     throw new AgarlyProviderError("NOT_CONFIGURED", "AI_PROVIDER is unsupported")
   }
   const key = process.env.KILO_API_KEY?.trim()
   if (!key) throw new AgarlyProviderError("NOT_CONFIGURED", "KILO_API_KEY is missing")
-  return createKiloProvider(key, process.env.KILO_MODEL?.trim() || undefined)
+  return createKiloProvider(
+    key,
+    process.env.KILO_MODEL?.trim() || sharedModel || "kilo-auto/free",
+  )
 }

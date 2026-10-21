@@ -9,6 +9,7 @@ import { RESIDENTIAL_PROJECT_KINDS } from "@/lib/project-kinds"
 import { formatPublicArea, formatShortArea } from "@/lib/locations"
 import { pointFromStoredCoords, resolveApproximateMapPoint, type ApproximateMapPoint } from "@/lib/map-geo"
 import type { AgarlyFilters } from "@/lib/agarly/schema"
+import { isMoreThanThreePropertyFloors } from "@/lib/listing-attributes"
 
 export type AgarlyMapListing = {
   id: string
@@ -89,7 +90,14 @@ export function buildAgarlyListingWhere(
   if (filters.district) where.districtSlug = filters.district
   if (filters.neighborhood) where.neighborhoodSlug = filters.neighborhood
   if (filters.rooms != null) where.roomCount = filters.rooms
-  if (filters.propertyFloors != null) where.propertyFloors = filters.propertyFloors
+  if (filters.propertyFloors != null) {
+    where.propertyFloors = isMoreThanThreePropertyFloors(
+      filters.category ?? undefined,
+      filters.propertyFloors,
+    )
+      ? { gte: 4 }
+      : filters.propertyFloors
+  }
   if (filters.minPriceIqd != null || filters.maxPriceIqd != null) {
     where.priceIqd = {
       ...(filters.minPriceIqd != null ? { gte: filters.minPriceIqd } : {}),

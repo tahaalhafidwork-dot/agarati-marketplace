@@ -32,6 +32,7 @@ import type { QuotaSnapshot } from "@/lib/agarly/quota"
 import type { AgarlyFilters } from "@/lib/agarly/schema"
 import type { AgarlySearchResults } from "@/lib/agarly/search"
 import { formatEnglishNumber } from "@/lib/numerals"
+import { formatPropertyFloors } from "@/lib/listing-attributes"
 import { cn } from "@/lib/utils"
 
 type Props = { sessionPresent: boolean; providerConfigured: boolean }
@@ -75,7 +76,13 @@ function filterChips(filters: AgarlyFilters) {
   if (filters.projectQuery) add("project", filters.projectQuery, { projectQuery: null, complex: null, insideComplex: false })
   if (filters.agencyQuery) add("agency", filters.agencyQuery, { agencyQuery: null })
   if (filters.rooms != null) add("rooms", `${filters.rooms} غرف`, { rooms: null })
-  if (filters.propertyFloors != null) add("floors", `${filters.propertyFloors} طوابق`, { propertyFloors: null })
+  if (filters.propertyFloors != null) {
+    add(
+      "floors",
+      formatPropertyFloors(filters.propertyFloors, filters.category ?? undefined),
+      { propertyFloors: null },
+    )
+  }
   if (filters.minPriceIqd != null) add("minPrice", `من ${formatEnglishNumber(filters.minPriceIqd)} د.ع`, { minPriceIqd: null })
   if (filters.maxPriceIqd != null) add("maxPrice", `حتى ${formatEnglishNumber(filters.maxPriceIqd)} د.ع`, { maxPriceIqd: null })
   if (filters.minAreaM2 != null) add("minArea", `من ${formatEnglishNumber(filters.minAreaM2)} م²`, { minAreaM2: null })
