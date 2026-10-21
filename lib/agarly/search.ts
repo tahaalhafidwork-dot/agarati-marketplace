@@ -158,8 +158,8 @@ function locationLabel(value: {
   return formatShortArea(ref) || formatPublicArea(ref) || "العراق"
 }
 
-export async function searchAgarly(filters: AgarlyFilters): Promise<AgarlySearchResults> {
-  const projectWhere: Prisma.ProjectWhereInput = {
+export function buildAgarlyProjectWhere(filters: AgarlyFilters): Prisma.ProjectWhereInput {
+  return {
     status: "APPROVED",
     projectKind: { in: RESIDENTIAL_PROJECT_KINDS },
     ...(filters.city ? { citySlug: filters.city } : {}),
@@ -174,6 +174,40 @@ export async function searchAgarly(filters: AgarlyFilters): Promise<AgarlySearch
         }
       : {}),
   }
+}
+
+export function buildAgarlyAgencyWhere(
+  filters: AgarlyFilters,
+  projectSlugs: string[] | null,
+): Prisma.AgencyWhereInput {
+  return {
+    status: "APPROVED",
+    ...(filters.city ? { citySlug: filters.city } : {}),
+    ...(filters.district ? { districtSlug: filters.district } : {}),
+    ...(filters.neighborhood ? { neighborhoodSlug: filters.neighborhood } : {}),
+    ...(filters.agencyQuery
+      ? {
+          OR: [
+            { name: { contains: filters.agencyQuery, mode: "insensitive" as const } },
+            { bio: { contains: filters.agencyQuery, mode: "insensitive" as const } },
+            { addressLine: { contains: filters.agencyQuery, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(projectSlugs
+      ? projectSlugs.length
+        ? {
+            createdBy: {
+              agencyProjects: { some: { project: { slug: { in: projectSlugs } } } },
+            },
+          }
+        : { id: { in: [] } }
+      : {}),
+  }
+}
+
+export async function searchAgarly(filters: AgarlyFilters): Promise<AgarlySearchResults> {
+  const projectWhere = buildAgarlyProjectWhere(filters)
 
   const matchedProjects = await prisma.project.findMany({
     where: projectWhere,
@@ -215,28 +249,7 @@ export async function searchAgarly(filters: AgarlyFilters): Promise<AgarlySearch
       : Promise.resolve([]),
     shouldListAgencies
       ? prisma.agency.findMany({
-          where: {
-            status: "APPROVED",
-            ...(filters.city ? { citySlug: filters.city } : {}),
-            ...(filters.district ? { districtSlug: filters.district } : {}),
-            ...(filters.neighborhood ? { neighborhoodSlug: filters.neighborhood } : {}),
-            ...(filters.agencyQuery
-              ? {
-                  OR: [
-                    { name: { contains: filters.agencyQuery, mode: "insensitive" as const } },
-                    { bio: { contains: filters.agencyQuery, mode: "insensitive" as const } },
-                    { addressLine: { contains: filters.agencyQuery, mode: "insensitive" as const } },
-                  ],
-                }
-              : {}),
-            ...(projectSlugs?.length
-              ? {
-                  createdBy: {
-                    agencyProjects: { some: { project: { slug: { in: projectSlugs } } } },
-                  },
-                }
-              : {}),
-          },
+          where: buildAgarlyAgencyWhere(filters, projectSlugs),
           orderBy: { name: "asc" },
           take: 6,
           select: {
