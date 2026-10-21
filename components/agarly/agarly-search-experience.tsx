@@ -8,6 +8,7 @@ import {
   Check,
   ChevronLeft,
   CircleAlert,
+  Columns2,
   List,
   LoaderCircle,
   Map,
@@ -18,6 +19,7 @@ import {
   X,
 } from "lucide-react"
 
+import { AgarlyFilterEditor } from "@/components/agarly/agarly-filter-editor"
 import { BrowseListingsMapLazy } from "@/components/map/browse-listings-map-lazy"
 import { ListingImage } from "@/components/property/listing-image"
 import { ListingResultRow } from "@/components/property/listing-result-row"
@@ -33,7 +35,7 @@ import { formatEnglishNumber } from "@/lib/numerals"
 import { cn } from "@/lib/utils"
 
 type Props = { sessionPresent: boolean; providerConfigured: boolean }
-type View = "list" | "map"
+type View = "list" | "map" | "split"
 type SearchPayload = {
   filters: AgarlyFilters
   results: AgarlySearchResults
@@ -177,10 +179,10 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
   }
 
   return (
-    <main className="min-h-[calc(100dvh-3.5rem)] bg-[#f7f3ec] pb-20 text-foreground">
+    <main className="min-h-[calc(100dvh-3.5rem)] w-full overflow-x-hidden bg-[#f7f3ec] pb-20 text-foreground">
       <section className="relative isolate overflow-hidden border-b border-primary/10 bg-primary text-primary-foreground">
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(184,149,108,0.35),transparent_35%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,0.11),transparent_35%)]" />
-        <div className="relative mx-auto max-w-5xl px-4 pb-9 pt-5 sm:px-6 md:pb-12 md:pt-8">
+        <div className="relative mx-auto box-border w-full max-w-5xl px-4 pb-9 pt-5 sm:px-6 md:pb-12 md:pt-8">
           <Link href="/" className="inline-flex items-center gap-1 text-xs text-primary-foreground/70 transition hover:text-white">
             <ArrowLeft className="size-3.5 rotate-180" /> الرئيسية
           </Link>
@@ -189,14 +191,14 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
               <Sparkles className="size-5 text-brand-gold" />
             </div>
             <p className="mt-4 text-[0.68rem] font-semibold tracking-[0.2em] text-brand-gold uppercase">AGARATİ INTELLIGENCE</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">ابحث كما تتكلم</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">احكِ لنا عن عقارك المثالي</h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-primary-foreground/72">
-              صف العقار أو المشروع أو الوكالة التي تريدها، وسيحوّل Agarly وصفك إلى فلاتر دقيقة على البيانات المنشورة فعليًا.
+              ابحث بلغتك الطبيعية، ودع أغارلي يساعدك في العثور على العقارات والمشاريع المناسبة.
             </p>
           </div>
 
-          <div className="mx-auto mt-7 max-w-3xl rounded-[1.35rem] border border-white/15 bg-white/9 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.2)] backdrop-blur-md">
-            <div className="rounded-2xl bg-white p-2 text-foreground">
+          <div className="mx-auto mt-7 w-full min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.35rem] border border-white/15 bg-white/9 shadow-[0_24px_70px_rgba(0,0,0,0.2)] backdrop-blur-md sm:max-w-3xl">
+            <div className="m-2 min-w-0 overflow-hidden rounded-2xl bg-white p-2 text-foreground">
               <label htmlFor="agarly-prompt" className="sr-only">صف العقار الذي تبحث عنه</label>
               <textarea
                 id="agarly-prompt"
@@ -211,14 +213,14 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
                 disabled={!sessionPresent || isBusy}
                 rows={3}
                 placeholder="مثال: شقة للبيع في أربيل، 3 غرف، حتى 180 مليون دينار…"
-                className="min-h-24 w-full resize-none rounded-xl border-0 bg-transparent px-3 py-3 text-sm leading-7 outline-none placeholder:text-muted-foreground/75 disabled:opacity-60 sm:text-base"
+                className="min-h-24 w-full min-w-0 max-w-full resize-none rounded-xl border-0 bg-transparent px-3 py-3 text-sm leading-7 outline-none placeholder:text-muted-foreground/75 disabled:opacity-60 sm:text-base"
               />
-              <div className="flex items-center justify-between gap-3 border-t border-border/70 px-1 pt-2">
-                <div className="flex items-center gap-1.5 text-[0.68rem] text-muted-foreground">
+              <div className="flex min-w-0 flex-col-reverse gap-2 border-t border-border/70 px-1 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="flex min-w-0 items-center justify-center gap-1.5 text-center text-[0.68rem] text-muted-foreground sm:justify-start sm:text-start">
                   <ShieldCheck className="size-3.5 text-emerald-700" />
                   لا نرسل بيانات حسابك إلى مزود الذكاء
                 </div>
-                <Button onClick={() => void submitSearch()} disabled={!sessionPresent || !providerConfigured || prompt.trim().length < 3 || isBusy} className="h-10 rounded-xl px-4 shadow-sm">
+                <Button onClick={() => void submitSearch()} disabled={!sessionPresent || !providerConfigured || prompt.trim().length < 3 || isBusy} className="h-10 w-full rounded-xl px-4 shadow-sm sm:w-auto">
                   {status === "searching" ? <LoaderCircle className="animate-spin" /> : <Search />}
                   {status === "searching" ? "جاري التحليل" : "ابحث بذكاء"}
                 </Button>
@@ -281,12 +283,16 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
             <div className="border-b border-border px-4 py-4 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-[0.65rem] font-semibold tracking-[0.14em] text-brand-gold uppercase">نتيجة موثقة من السوق</p><h2 className="mt-1 text-lg font-bold text-primary">{resultSummary(payload.results)}</h2></div>
-                {payload.results.mapListings.length ? (
-                  <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
-                    <button type="button" onClick={() => setView("list")} className={cn("flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-semibold", view === "list" && "bg-card text-primary shadow-sm")}><List className="size-3.5" />القائمة</button>
-                    <button type="button" onClick={() => setView("map")} className={cn("flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-semibold", view === "map" && "bg-card text-primary shadow-sm")}><Map className="size-3.5" />الخريطة</button>
-                  </div>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <AgarlyFilterEditor filters={payload.filters} busy={isBusy} onApply={applyFilters} />
+                  {payload.results.mapListings.length ? (
+                    <div className="flex rounded-lg border border-border bg-muted/40 p-0.5">
+                      <button type="button" onClick={() => setView("list")} className={cn("flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-semibold", view === "list" && "bg-card text-primary shadow-sm")}><List className="size-3.5" />القائمة</button>
+                      <button type="button" onClick={() => setView("map")} className={cn("flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-semibold", view === "map" && "bg-card text-primary shadow-sm")}><Map className="size-3.5" />الخريطة</button>
+                      <button type="button" onClick={() => setView("split")} className={cn("hidden h-8 items-center gap-1 rounded-md px-2.5 text-xs font-semibold lg:flex", view === "split" && "bg-card text-primary shadow-sm")}><Columns2 className="size-3.5" />مشترك</button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               {chips.length ? (
                 <div className="mt-4 flex flex-wrap gap-2" aria-label="الفلاتر المستخرجة">
@@ -303,6 +309,22 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
 
             {view === "map" && payload.results.mapListings.length ? (
               <BrowseListingsMapLazy listings={payload.results.mapListings} listHref="#agarly-results" className="overflow-hidden rounded-b-2xl" />
+            ) : view === "split" && payload.results.mapListings.length ? (
+              <>
+                <div className="divide-y divide-border lg:hidden">
+                  {payload.results.listings.map((listing) => (
+                    <ListingResultRow key={listing.id} item={{ id: listing.id, href: `/properties/${listing.id}`, title: listing.title, price: listing.price, area: listing.area, type: listing.type, deal: listing.deal, image: listing.image, listingNumber: listing.listingNumber, rooms: listing.rooms }} className="bg-card" />
+                  ))}
+                </div>
+                <div className="hidden min-h-[32rem] grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] divide-x divide-x-reverse divide-border lg:grid">
+                  <div className="max-h-[min(68vh,38rem)] divide-y divide-border overflow-y-auto">
+                    {payload.results.listings.map((listing) => (
+                      <ListingResultRow key={listing.id} item={{ id: listing.id, href: `/properties/${listing.id}`, title: listing.title, price: listing.price, area: listing.area, type: listing.type, deal: listing.deal, image: listing.image, listingNumber: listing.listingNumber, rooms: listing.rooms }} className="bg-card" />
+                    ))}
+                  </div>
+                  <BrowseListingsMapLazy listings={payload.results.mapListings} listHref="#agarly-results" className="overflow-hidden rounded-bl-2xl" />
+                </div>
+              </>
             ) : (
               <div className="divide-y divide-border">
                 {payload.results.listings.map((listing) => (
