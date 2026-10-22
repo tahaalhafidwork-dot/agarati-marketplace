@@ -198,7 +198,7 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
               <Sparkles className="size-5 text-brand-gold" />
             </div>
             <p className="mt-4 text-[0.68rem] font-semibold tracking-[0.2em] text-brand-gold uppercase">AGARATİ INTELLIGENCE</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">احكِ لنا عن عقارك المثالي</h1>
+            <h1 className="mt-2 text-balance text-2xl font-bold leading-tight tracking-tight sm:text-4xl">احكِ لنا عن عقارك المثالي</h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-primary-foreground/72">
               ابحث بلغتك الطبيعية، ودع أغارلي يساعدك في العثور على العقارات والمشاريع المناسبة.
             </p>
