@@ -93,7 +93,10 @@ export const prismaAgarlyQuotaStore: AgarlyQuotaStore = {
   async withUserLock<T>(userId: string, callback: (tx: AgarlyQuotaTransaction) => Promise<T>) {
     return prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`agarly:${userId}`}, 0))`
+        await tx.$queryRaw`
+          SELECT 1::integer AS "locked"
+          FROM pg_advisory_xact_lock(hashtextextended(${`agarly:${userId}`}, 0))
+        `
         const adapter: AgarlyQuotaTransaction = {
           async findByRequestId(requestId) {
             return tx.agarlySearchUsage.findUnique({
