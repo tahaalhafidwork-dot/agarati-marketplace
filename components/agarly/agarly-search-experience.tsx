@@ -187,24 +187,24 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
 
   return (
     <main className="min-h-[calc(100dvh-3.5rem)] w-full overflow-x-hidden bg-[#f7f3ec] pb-20 text-foreground">
-      <section className="relative isolate overflow-hidden border-b border-primary/10 bg-primary text-primary-foreground">
-        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(184,149,108,0.35),transparent_35%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,0.11),transparent_35%)]" />
+      <section className="relative isolate overflow-hidden border-b border-brand-gold/25 bg-[linear-gradient(145deg,#fffdf8_0%,#f5ecdf_58%,#eadbc8_100%)] text-primary">
+        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(184,149,108,0.2),transparent_34%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,0.72),transparent_38%)]" />
         <div className="relative mx-auto box-border w-full max-w-5xl px-4 pb-9 pt-5 sm:px-6 md:pb-12 md:pt-8">
-          <Link href="/" className="inline-flex items-center gap-1 text-xs text-primary-foreground/70 transition hover:text-white">
+          <Link href="/" className="inline-flex items-center gap-1 text-xs text-primary/65 transition hover:text-primary">
             <ArrowLeft className="size-3.5 rotate-180" /> الرئيسية
           </Link>
           <div className="mx-auto mt-7 max-w-3xl text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 shadow-inner backdrop-blur">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-brand-gold/30 bg-white/65 shadow-[0_10px_30px_rgba(15,39,68,0.08)] backdrop-blur">
               <Sparkles className="size-5 text-brand-gold" />
             </div>
             <p className="mt-4 text-[0.68rem] font-semibold tracking-[0.2em] text-brand-gold uppercase">AGARATİ INTELLIGENCE</p>
             <h1 className="mt-2 text-balance text-2xl font-bold leading-tight tracking-tight sm:text-4xl">احكِ لنا عن عقارك المثالي</h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-primary-foreground/72">
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
               ابحث بلغتك الطبيعية، ودع أغارلي يساعدك في العثور على العقارات والمشاريع المناسبة.
             </p>
           </div>
 
-          <div className="mx-auto mt-7 w-full min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.35rem] border border-white/15 bg-white/9 shadow-[0_24px_70px_rgba(0,0,0,0.2)] backdrop-blur-md sm:max-w-3xl">
+          <div className="mx-auto mt-7 w-full min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.35rem] border border-brand-gold/30 bg-white/55 shadow-[0_24px_70px_rgba(15,39,68,0.12)] backdrop-blur-md sm:max-w-3xl">
             <div className="m-2 min-w-0 overflow-hidden rounded-2xl bg-white p-2 text-foreground">
               <label htmlFor="agarly-prompt" className="sr-only">صف العقار الذي تبحث عنه</label>
               <textarea
@@ -237,13 +237,13 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
 
           <div className="mx-auto mt-4 flex max-w-3xl flex-wrap items-center justify-center gap-2">
             {EXAMPLES.map((example) => (
-              <button key={example} type="button" onClick={() => setPrompt(example)} disabled={!sessionPresent || isBusy} className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-[0.68rem] text-primary-foreground/75 transition hover:border-brand-gold/50 hover:bg-white/12 hover:text-white disabled:opacity-50">
+              <button key={example} type="button" onClick={() => setPrompt(example)} disabled={!sessionPresent || isBusy} className="rounded-full border border-brand-gold/25 bg-white/55 px-3 py-1.5 text-[0.68rem] text-primary/75 transition hover:border-brand-gold/55 hover:bg-white/85 hover:text-primary disabled:opacity-50">
                 {example}
               </button>
             ))}
           </div>
           <div className="mt-5 flex justify-center">
-            <span className="rounded-full border border-white/12 bg-black/10 px-3 py-1 text-[0.68rem] text-primary-foreground/65">
+            <span className="rounded-full border border-brand-gold/25 bg-white/45 px-3 py-1 text-[0.68rem] text-primary/65">
               {quota ? `${quota.remaining} من ${quota.limit} عمليات متبقية خلال 3 ساعات` : "10 عمليات بحث ذكية كل 3 ساعات"}
             </span>
           </div>
@@ -255,7 +255,7 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
           <div className="rounded-2xl border border-brand-gold/25 bg-card p-6 shadow-[0_16px_45px_rgba(15,39,68,0.07)]">
             <Sparkles className="mx-auto size-6 text-brand-gold" />
             <h2 className="mt-3 text-lg font-bold text-primary">Agarly مخصص لأعضاء AGARATİ</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">سجّل الدخول لحماية حصتك واستلام نتائج مرتبطة ببيانات السوق الحقيقية.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">سجّل الدخول وابحث عبر الذكاء الاصطناعي، واستلم نتائج مرتبطة ببيانات السوق الحقيقية.</p>
             <Link href="/login?next=/agarly" className={cn(buttonVariants({ size: "lg" }), "mt-5 rounded-xl px-5")}>تسجيل الدخول</Link>
           </div>
         </section>
