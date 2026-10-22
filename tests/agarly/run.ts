@@ -95,6 +95,15 @@ async function run() {
     applyPromptPriceHints(emptyFilters, "شقة مساحتها حتى 200 متر").maxPriceIqd,
     null,
   )
+  const guardedFilters = applyPromptPriceHints(
+    { ...emptyFilters, deal: "rent", maxPriceIqd: 180_000 },
+    "شقة للبيع في أربيل بثلاث غرف وبسعر أقل من 180 مليون دينار",
+  )
+  assert.equal(guardedFilters.category, "apartment")
+  assert.equal(guardedFilters.deal, "sale")
+  assert.equal(guardedFilters.city, "erbil")
+  assert.equal(guardedFilters.rooms, 3)
+  assert.equal(guardedFilters.maxPriceIqd, 180_000_000)
 
   await assert.rejects(
     readAgarlyJsonBody(
@@ -163,8 +172,10 @@ async function run() {
   else process.env.AI_MODEL = oldAiModel
 
   const previousFetch = globalThis.fetch
-  globalThis.fetch = async () =>
-    Response.json({
+  let kiloRequestBody: unknown
+  globalThis.fetch = async (_input, init) => {
+    kiloRequestBody = JSON.parse(String(init?.body))
+    return Response.json({
       choices: [{
         message: {
           content: JSON.stringify({
@@ -178,6 +189,7 @@ async function run() {
         },
       }],
     })
+  }
   const extracted = await createKiloProvider("test-key").extractFilters(
     "فيلا داخل مجمع في أربيل بأقل من 300 مليون دينار",
     new AbortController().signal,
@@ -186,6 +198,10 @@ async function run() {
   assert.equal(extracted.city, "erbil")
   assert.equal(extracted.maxPriceIqd, 300_000_000)
   assert.equal(extracted.insideComplex, true)
+  assert.equal(
+    (kiloRequestBody as { response_format?: { type?: string } }).response_format?.type,
+    "json_schema",
+  )
 
   globalThis.fetch = async () => new Response("{}", { status: 503 })
   await assert.rejects(

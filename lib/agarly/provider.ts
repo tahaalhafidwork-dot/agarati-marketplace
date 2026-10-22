@@ -3,7 +3,7 @@ import {
   normalizeAgarlyFilters,
   type AgarlyFilters,
 } from "@/lib/agarly/schema"
-import { agarlySystemPrompt, applyPromptPriceHints } from "@/lib/agarly/prompt"
+import { agarlySystemPrompt, applyPromptHints } from "@/lib/agarly/prompt"
 
 export type AgarlyProviderName = "kilo" | "openai"
 
@@ -108,15 +108,22 @@ export function createKiloProvider(apiKey: string, model = "kilo-auto/free"): Ag
         body: {
           model,
           temperature: 0,
-          max_tokens: 800,
-          response_format: { type: "json_object" },
+          max_tokens: 1200,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "agarly_search_filters",
+              strict: true,
+              schema: AGARLY_PROVIDER_JSON_SCHEMA,
+            },
+          },
           messages: [
             { role: "system", content: agarlySystemPrompt() },
             { role: "user", content: prompt },
           ],
         },
       })
-      return applyPromptPriceHints(
+      return applyPromptHints(
         normalizeAgarlyFilters(jsonFromContent(chatContent(payload))),
         prompt,
       )
@@ -149,7 +156,7 @@ export function createOpenAiProvider(apiKey: string, model = "gpt-5-mini"): Agar
           },
         },
       })
-      return applyPromptPriceHints(
+      return applyPromptHints(
         normalizeAgarlyFilters(jsonFromContent(chatContent(payload))),
         prompt,
       )
