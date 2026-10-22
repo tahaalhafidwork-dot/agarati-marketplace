@@ -5,6 +5,7 @@ import { AgarlyProviderError, createKiloProvider, getConfiguredAgarlyProvider } 
 import { AgarlyRequestBodyError, readAgarlyJsonBody } from "../../lib/agarly/http"
 import {
   applyPromptPriceHints,
+  buildAgarlyClarification,
   parseIraqiPriceExpression,
   sanitizePromptForProvider,
 } from "../../lib/agarly/prompt"
@@ -15,7 +16,7 @@ import {
   type AgarlyQuotaTransaction,
   type AgarlyUsageRecord,
 } from "../../lib/agarly/quota"
-import { normalizeAgarlyFilters } from "../../lib/agarly/schema"
+import { normalizeAgarlyFilters, parseStoredAgarlyOutcome } from "../../lib/agarly/schema"
 import {
   buildAgarlyAgencyWhere,
   buildAgarlyListingWhere,
@@ -104,6 +105,72 @@ async function run() {
   assert.equal(guardedFilters.city, "erbil")
   assert.equal(guardedFilters.rooms, 3)
   assert.equal(guardedFilters.maxPriceIqd, 180_000_000)
+
+  const broadErbil = applyPromptPriceHints(
+    { ...emptyFilters, intent: "agencies" },
+    "ابحث عن عقارات في أربيل",
+  )
+  assert.equal(broadErbil.intent, "mixed")
+  assert.equal(broadErbil.city, "erbil")
+
+  const mosulHouse = applyPromptPriceHints(emptyFilters, "أريد منزل في الموصل")
+  assert.equal(mosulHouse.intent, "mixed")
+  assert.equal(mosulHouse.category, "house")
+  assert.equal(mosulHouse.deal, null)
+  assert.equal(mosulHouse.city, "ninwa")
+  assert.equal(mosulHouse.district, "mosul")
+
+  const agencySearch = applyPromptPriceHints(emptyFilters, "أريد مكتبًا عقاريًا في أربيل")
+  assert.equal(agencySearch.intent, "agencies")
+
+  const safeKeywords = applyPromptPriceHints(
+    { ...emptyFilters, keywords: ["الموصل", "مسبح"] },
+    "أريد منزلًا مع مسبح في الموصل",
+  )
+  assert.deepEqual(safeKeywords.keywords, ["مسبح"])
+
+  const iraqiDialect = applyPromptPriceHints(emptyFilters, "دورلي دار آجار بهولير")
+  assert.equal(iraqiDialect.category, "house")
+  assert.equal(iraqiDialect.deal, "rent")
+  assert.equal(iraqiDialect.city, "erbil")
+
+  const ambiguousNeighborhood = normalizeAgarlyFilters({
+    intent: "mixed",
+    neighborhood: "المهندسين",
+  })
+  assert.equal(ambiguousNeighborhood.city, null)
+  assert.equal(ambiguousNeighborhood.neighborhood, null)
+  const clarifiedNeighborhood = normalizeAgarlyFilters({
+    intent: "mixed",
+    district: "الموصل",
+    neighborhood: "المهندسين",
+  })
+  assert.equal(clarifiedNeighborhood.city, "ninwa")
+  assert.equal(clarifiedNeighborhood.district, "mosul")
+  assert.equal(clarifiedNeighborhood.neighborhood, "al-muhandisiyyin")
+
+  const clarification = buildAgarlyClarification("أريد بيتًا في حي المهندسين")
+  assert.ok(clarification)
+  assert.ok(clarification.options.length > 1)
+  assert.ok(clarification.options.length <= 3)
+  assert.equal(buildAgarlyClarification("أريد بيتًا في حي المهندسين في الموصل"), null)
+  assert.equal(buildAgarlyClarification("أريد بيتًا في حي المهندسين في كربلاء"), null)
+  const repeatedKarbalaNeighborhood = applyPromptPriceHints(
+    {
+      ...emptyFilters,
+      city: "najaf",
+      district: "najaf-center",
+      neighborhood: "al-muhandisiyyin-najaf",
+    },
+    "أريد بيتًا في حي المهندسين في كربلاء",
+  )
+  assert.equal(repeatedKarbalaNeighborhood.city, "karbala")
+  assert.equal(repeatedKarbalaNeighborhood.district, "karbala-center")
+  assert.equal(repeatedKarbalaNeighborhood.neighborhood, null)
+  assert.deepEqual(parseStoredAgarlyOutcome(emptyFilters), {
+    filters: emptyFilters,
+    clarification: null,
+  })
 
   await assert.rejects(
     readAgarlyJsonBody(
@@ -198,6 +265,7 @@ async function run() {
   assert.equal(extracted.city, "erbil")
   assert.equal(extracted.maxPriceIqd, 300_000_000)
   assert.equal(extracted.insideComplex, true)
+  assert.equal(extracted.intent, "mixed")
   assert.equal(
     (kiloRequestBody as { response_format?: { type?: string } }).response_format?.type,
     "json_schema",
@@ -216,6 +284,8 @@ async function run() {
   assert.match(ui, /BrowseListingsMapLazy/)
   assert.match(ui, /AgarlyFilterEditor/)
   assert.match(ui, /\/api\/agarly\/results/)
+  assert.match(ui, /توضيح سريع/)
+  assert.match(ui, /selectClarificationOption/)
 
   console.log("Agarly AI extraction, privacy, visibility, quota, provider and UI contracts OK")
 }

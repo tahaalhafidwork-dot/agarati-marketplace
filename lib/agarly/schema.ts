@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { districtsOf, iraqCities, neighborhoodsOf } from "@/lib/locations"
+import { resolveAgarlyLocationInput } from "@/lib/agarly/location-understanding"
 import { toEnglishDigits } from "@/lib/numerals"
 
 export const AGARLY_INTENTS = ["listings", "projects", "agencies", "mixed"] as const
@@ -84,6 +84,21 @@ export type AgarlyFilters = {
   sort: (typeof AGARLY_SORTS)[number]
 }
 
+export type AgarlyClarification = {
+  question: string
+  inputPlaceholder: string
+  options: Array<{
+    label: string
+    value: string
+    location: { city: string; district: string; neighborhood: string | null }
+  }>
+}
+
+export type AgarlyUsageOutcome = {
+  filters: AgarlyFilters
+  clarification: AgarlyClarification | null
+}
+
 const nullableNumberSchema = z.number().int().nonnegative().nullable()
 
 export const agarlyFiltersSchema: z.ZodType<AgarlyFilters> = z
@@ -123,45 +138,6 @@ function normalizeLookup(value: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, "")
 }
 
-function matchesLocation(value: string, option: { slug: string; label: string }): boolean {
-  const needle = normalizeLookup(value)
-  return needle === normalizeLookup(option.slug) || needle === normalizeLookup(option.label)
-}
-
-function resolveLocation(input: {
-  city?: string | null
-  district?: string | null
-  neighborhood?: string | null
-}) {
-  let city = input.city
-    ? iraqCities.find((item) => matchesLocation(input.city!, item)) ?? null
-    : null
-
-  if (!city && input.district) {
-    city =
-      iraqCities.find((candidate) =>
-        districtsOf(candidate.slug).some((item) => matchesLocation(input.district!, item))
-      ) ?? null
-  }
-
-  const district =
-    city && input.district
-      ? districtsOf(city.slug).find((item) => matchesLocation(input.district!, item)) ?? null
-      : null
-  const neighborhood =
-    city && district && input.neighborhood
-      ? neighborhoodsOf(city.slug, district.slug).find((item) =>
-          matchesLocation(input.neighborhood!, item)
-        ) ?? null
-      : null
-
-  return {
-    city: city?.slug ?? null,
-    district: district?.slug ?? null,
-    neighborhood: neighborhood?.slug ?? null,
-  }
-}
-
 function cleanList(values: string[] | undefined, max: number): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -178,7 +154,7 @@ function cleanList(values: string[] | undefined, max: number): string[] {
 
 export function normalizeAgarlyFilters(value: unknown): AgarlyFilters {
   const parsed = agarlyProviderFiltersSchema.parse(value)
-  const location = resolveLocation(parsed)
+  const location = resolveAgarlyLocationInput(parsed)
   let minPriceIqd = parsed.minPriceIqd ?? null
   let maxPriceIqd = parsed.maxPriceIqd ?? null
   let minAreaM2 = parsed.minAreaM2 ?? null
@@ -217,6 +193,34 @@ export function normalizeAgarlyFilters(value: unknown): AgarlyFilters {
 
 export function parseStoredAgarlyFilters(value: unknown): AgarlyFilters {
   return agarlyFiltersSchema.parse(value)
+}
+
+const agarlyClarificationSchema: z.ZodType<AgarlyClarification> = z.object({
+  question: z.string().min(1).max(180),
+  inputPlaceholder: z.string().min(1).max(100),
+  options: z
+    .array(z.object({
+      label: z.string().min(1).max(80),
+      value: z.string().min(1).max(120),
+      location: z.object({
+        city: z.string().min(1).max(80),
+        district: z.string().min(1).max(80),
+        neighborhood: z.string().min(1).max(80).nullable(),
+      }),
+    }))
+    .max(3),
+})
+
+const agarlyUsageOutcomeSchema: z.ZodType<AgarlyUsageOutcome> = z.object({
+  filters: agarlyFiltersSchema,
+  clarification: agarlyClarificationSchema.nullable(),
+})
+
+/** Supports both the current outcome envelope and filter-only rows written by older releases. */
+export function parseStoredAgarlyOutcome(value: unknown): AgarlyUsageOutcome {
+  const current = agarlyUsageOutcomeSchema.safeParse(value)
+  if (current.success) return current.data
+  return { filters: parseStoredAgarlyFilters(value), clarification: null }
 }
 
 export const AGARLY_PROVIDER_JSON_SCHEMA = {

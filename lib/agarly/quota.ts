@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client"
 
 import { prisma } from "@/lib/db"
-import type { AgarlyFilters } from "@/lib/agarly/schema"
+import type { AgarlyUsageOutcome } from "@/lib/agarly/schema"
 
 export const AGARLY_QUOTA_LIMIT = 10
 export const AGARLY_QUOTA_WINDOW_MS = 3 * 60 * 60 * 1000
@@ -158,12 +158,12 @@ export async function getAgarlyQuotaSnapshot(
   return snapshot(used, oldest?.createdAt ?? null)
 }
 
-export async function completeAgarlyUsage(requestId: string, filters: AgarlyFilters) {
+export async function completeAgarlyUsage(requestId: string, outcome: AgarlyUsageOutcome) {
   await prisma.agarlySearchUsage.update({
     where: { requestId },
     data: {
       status: "COMPLETED",
-      filters: filters as unknown as Prisma.InputJsonValue,
+      filters: outcome as unknown as Prisma.InputJsonValue,
       completedAt: new Date(),
       errorCode: null,
     },

@@ -13,6 +13,7 @@ import {
   LoaderCircle,
   Map,
   MapPin,
+  MessageCircleQuestion,
   Search,
   ShieldCheck,
   Sparkles,
@@ -29,7 +30,7 @@ import { getCity, districtsOf, neighborhoodsOf } from "@/lib/locations"
 import { LAND_USE_LABELS } from "@/lib/land-uses"
 import { categoryLabels, dealLabels } from "@/lib/sample-listings"
 import type { QuotaSnapshot } from "@/lib/agarly/quota"
-import type { AgarlyFilters } from "@/lib/agarly/schema"
+import type { AgarlyClarification, AgarlyFilters } from "@/lib/agarly/schema"
 import type { AgarlySearchResults } from "@/lib/agarly/search"
 import { formatEnglishNumber } from "@/lib/numerals"
 import { formatPropertyFloors } from "@/lib/listing-attributes"
@@ -41,6 +42,15 @@ type SearchPayload = {
   filters: AgarlyFilters
   results: AgarlySearchResults
   quota?: QuotaSnapshot
+}
+type ClarificationPayload = {
+  filters: AgarlyFilters
+  clarification: AgarlyClarification
+  quota?: QuotaSnapshot
+}
+type PendingClarification = AgarlyClarification & {
+  originalPrompt: string
+  filters: AgarlyFilters
 }
 
 const EXAMPLES = [
@@ -109,8 +119,11 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
   const [view, setView] = useState<View>("list")
   const [status, setStatus] = useState<"idle" | "searching" | "refining">("idle")
   const [error, setError] = useState<string | null>(null)
+  const [clarification, setClarification] = useState<PendingClarification | null>(null)
+  const [clarificationAnswer, setClarificationAnswer] = useState("")
   const requestSequence = useRef(0)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const clarificationRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!sessionPresent) return
@@ -130,26 +143,39 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
   const chips = useMemo(() => (payload ? filterChips(payload.filters) : []), [payload])
   const isBusy = status !== "idle"
 
-  async function submitSearch() {
-    const clean = prompt.trim()
+  async function submitSearch(explicitPrompt?: string) {
+    const clean = (explicitPrompt ?? prompt).trim()
     if (clean.length < 3 || isBusy || !sessionPresent || !providerConfigured) return
     const sequence = ++requestSequence.current
     setStatus("searching")
     setError(null)
+    setClarification(null)
     try {
       const response = await fetch("/api/agarly/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: clean, requestId: crypto.randomUUID() }),
       })
-      const data = (await response.json()) as SearchPayload & { error?: string; quota?: QuotaSnapshot }
+      const data = (await response.json()) as (SearchPayload | ClarificationPayload) & {
+        error?: string
+        quota?: QuotaSnapshot
+      }
       if (sequence !== requestSequence.current) return
       if (!response.ok) {
         if (data.quota) setQuota(data.quota)
         throw new Error(data.error || "تعذر تنفيذ البحث الذكي.")
       }
-      setPayload(data)
       if (data.quota) setQuota(data.quota)
+      if ("clarification" in data && data.clarification) {
+        setPayload(null)
+        setClarification({ ...data.clarification, originalPrompt: clean, filters: data.filters })
+        setClarificationAnswer("")
+        requestAnimationFrame(() =>
+          clarificationRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        )
+        return
+      }
+      setPayload(data as SearchPayload)
       setView("list")
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))
     } catch (caught) {
@@ -159,6 +185,22 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
     } finally {
       if (sequence === requestSequence.current) setStatus("idle")
     }
+  }
+
+  function answerClarification(value: string) {
+    if (!clarification || isBusy) return
+    const answer = value.trim()
+    if (!answer) return
+    const followUpPrompt = `${clarification.originalPrompt.slice(0, 340)}. توضيح المستخدم: ${answer}`.slice(0, 500)
+    setPrompt(followUpPrompt)
+    void submitSearch(followUpPrompt)
+  }
+
+  function selectClarificationOption(option: AgarlyClarification["options"][number]) {
+    if (!clarification || isBusy) return
+    const filters = { ...clarification.filters, ...option.location }
+    setClarification(null)
+    void applyFilters(filters)
   }
 
   async function applyFilters(filters: AgarlyFilters) {
@@ -210,7 +252,10 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
               <textarea
                 id="agarly-prompt"
                 value={prompt}
-                onChange={(event) => setPrompt(event.target.value.slice(0, 500))}
+                onChange={(event) => {
+                  setPrompt(event.target.value.slice(0, 500))
+                  if (clarification) setClarification(null)
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault()
@@ -277,9 +322,70 @@ export function AgarlySearchExperience({ sessionPresent, providerConfigured }: P
         </div>
       ) : null}
 
-      {status === "searching" && !payload ? (
+      {clarification ? (
+        <section ref={clarificationRef} className="mx-auto mt-6 max-w-2xl px-4" aria-live="polite">
+          <div className="overflow-hidden rounded-2xl border border-brand-gold/35 bg-card shadow-[0_16px_45px_rgba(15,39,68,0.08)]">
+            <div className="flex items-start gap-3 border-b border-border bg-[#fbf7f0] px-4 py-4 sm:px-5">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                <MessageCircleQuestion className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[0.65rem] font-semibold tracking-[0.12em] text-brand-gold uppercase">توضيح سريع</p>
+                <h2 className="mt-1 text-sm font-bold leading-6 text-primary sm:text-base">{clarification.question}</h2>
+              </div>
+            </div>
+            <div className="space-y-4 p-4 sm:p-5">
+              {clarification.options.length ? (
+                <div className="grid gap-2 sm:grid-cols-3" aria-label="خيارات التوضيح">
+                  {clarification.options.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => selectClarificationOption(option)}
+                      className="min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold text-primary transition hover:border-brand-gold hover:bg-[#fbf7f0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold/50 disabled:opacity-50"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label htmlFor="agarly-clarification" className="sr-only">اكتب توضيحك</label>
+                <input
+                  id="agarly-clarification"
+                  value={clarificationAnswer}
+                  onChange={(event) => setClarificationAnswer(event.target.value.slice(0, 120))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      answerClarification(clarificationAnswer)
+                    }
+                  }}
+                  placeholder={clarification.inputPlaceholder}
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20"
+                />
+                <Button
+                  type="button"
+                  onClick={() => answerClarification(clarificationAnswer)}
+                  disabled={clarificationAnswer.trim().length < 2 || isBusy}
+                  className="h-11 rounded-xl px-5"
+                >
+                  {status === "searching" ? <LoaderCircle className="animate-spin" /> : <Search />}
+                  تابع البحث
+                </Button>
+              </div>
+              <p className="text-[0.68rem] leading-5 text-muted-foreground">لن يبدأ البحث النهائي قبل فهم الموقع المقصود، لتجنب نتائج غير دقيقة.</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {status !== "idle" && !payload && !clarification ? (
         <section className="mx-auto max-w-5xl space-y-3 px-4 py-10" aria-live="polite">
-          <p className="text-center text-sm font-medium text-primary">نحلّل طلبك ونطابقه مع البيانات المنشورة…</p>
+          <p className="text-center text-sm font-medium text-primary">
+            {status === "searching" ? "نحلّل طلبك ونطابقه مع البيانات المنشورة…" : "نحدّث النتائج وفق اختيارك…"}
+          </p>
           {[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl border border-border bg-card" />)}
         </section>
       ) : null}

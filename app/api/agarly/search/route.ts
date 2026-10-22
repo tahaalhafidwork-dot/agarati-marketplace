@@ -9,14 +9,19 @@ import {
   readAgarlyJsonBody,
 } from "@/lib/agarly/http"
 import { getConfiguredAgarlyProvider, AgarlyProviderError } from "@/lib/agarly/provider"
-import { hashSearchPrompt, normalizeSearchPrompt, sanitizePromptForProvider } from "@/lib/agarly/prompt"
+import {
+  buildAgarlyClarification,
+  hashSearchPrompt,
+  normalizeSearchPrompt,
+  sanitizePromptForProvider,
+} from "@/lib/agarly/prompt"
 import {
   completeAgarlyUsage,
   failAgarlyUsage,
   prismaAgarlyQuotaStore,
   reserveAgarlyRequest,
 } from "@/lib/agarly/quota"
-import { parseStoredAgarlyFilters } from "@/lib/agarly/schema"
+import { parseStoredAgarlyOutcome } from "@/lib/agarly/schema"
 import { searchAgarly } from "@/lib/agarly/search"
 
 export const runtime = "nodejs"
@@ -123,9 +128,22 @@ export async function POST(request: Request) {
     }
     if (reservation.usage.status === "COMPLETED" && reservation.usage.filters) {
       try {
-        const filters = parseStoredAgarlyFilters(reservation.usage.filters)
-        const results = await searchAgarly(filters)
-        return agarlyJson({ filters, results, quota: reservation.quota, replayed: true })
+        const outcome = parseStoredAgarlyOutcome(reservation.usage.filters)
+        if (outcome.clarification) {
+          return agarlyJson({
+            filters: outcome.filters,
+            clarification: outcome.clarification,
+            quota: reservation.quota,
+            replayed: true,
+          })
+        }
+        const results = await searchAgarly(outcome.filters)
+        return agarlyJson({
+          filters: outcome.filters,
+          results,
+          quota: reservation.quota,
+          replayed: true,
+        })
       } catch {
         return agarlyJson({ error: "تعذر استعادة نتيجة الطلب السابق.", code: "REPLAY_FAILED" }, { status: 503 })
       }
@@ -148,7 +166,11 @@ export async function POST(request: Request) {
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const filters = await provider.extractFilters(sanitizePromptForProvider(prompt), controller.signal)
-    await completeAgarlyUsage(body.requestId, filters)
+    const clarification = buildAgarlyClarification(prompt)
+    await completeAgarlyUsage(body.requestId, { filters, clarification })
+    if (clarification) {
+      return agarlyJson({ filters, clarification, quota: reservation.quota, replayed: false })
+    }
     const results = await searchAgarly(filters)
     return agarlyJson({ filters, results, quota: reservation.quota, replayed: false })
   } catch (error) {
