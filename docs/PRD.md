@@ -4,7 +4,7 @@ Stub. Expand after Sprint 0.
 
 ## Product
 
-Focused Turkish / regional real-estate marketplace. Arabic UI chrome. Mobile-first.
+Focused Iraqi real-estate marketplace for listings, residential projects, and approved agencies. Arabic UI chrome. Mobile-first.
 
 ## MVP in
 

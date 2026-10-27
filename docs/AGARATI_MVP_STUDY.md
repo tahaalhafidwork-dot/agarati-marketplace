@@ -4,7 +4,7 @@ Stub. Notes from product framing.
 
 ## Positioning
 
-AGARATİ.COM is a **focused** marketplace for Turkey and the region — not a classifieds kitchen sink. Arabic-first chrome, mobile-first, sale + long-term rent.
+AGARATİ.COM is a **focused Iraqi real-estate marketplace** — not a general classifieds platform. Arabic-first chrome, mobile-first, with listings, residential projects, and approved agencies.
 
 ## What “focused” means
 

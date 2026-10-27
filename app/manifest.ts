@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "أغاراتي — سوق عقاري",
     short_name: "أغاراتي",
-    description: "سوق عقاري مركّز لتركيا والمنطقة. واجهة عربية وتجربة للجوال أولاً.",
+    description: "منصة عقارية عراقية متخصصة للعقارات والمشاريع والوكالات المعتمدة، بتجربة عربية تبدأ من الهاتف.",
     start_url: "/",
     scope: "/",
     display: "standalone",

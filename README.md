@@ -1,6 +1,6 @@
 # AGARATİ.COM
 
-Focused Turkish / regional real-estate marketplace (Sprint 0 foundation).
+Focused Iraqi real-estate marketplace for listings, residential projects, and approved agencies.
 
 Arabic UI chrome (`lang=ar`, `dir=rtl`). Mobile-first. Next.js App Router + TypeScript + Tailwind + shadcn/ui.
 

@@ -4,7 +4,7 @@
 
 ## Product
 
-AGARATİ.COM is a focused Turkish/regional real-estate marketplace. UI chrome is Arabic (`lang=ar`, `dir=rtl`). Mobile-first.
+AGARATİ.COM is a focused Iraqi real-estate marketplace for listings, residential projects, and approved agencies. UI chrome is Arabic (`lang=ar`, `dir=rtl`). Mobile-first.
 
 ## Stack
 

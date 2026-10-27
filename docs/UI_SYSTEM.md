@@ -2,9 +2,9 @@
 
 Tokens and layout rules for AGARATİ public chrome.
 
-Marketplace density is inspired by Turkish classifieds IA
-([docs/references/sahibinden/DESIGN.md](references/sahibinden/DESIGN.md)) —
-structure only. Brand colors stay AGARATİ.
+Marketplace density draws on established classifieds information architecture
+([docs/references/sahibinden/DESIGN.md](references/sahibinden/DESIGN.md)) as a historical
+structure reference only. Brand colors and market positioning stay Iraqi and distinctly AGARATİ.
 
 ## Language and direction
 

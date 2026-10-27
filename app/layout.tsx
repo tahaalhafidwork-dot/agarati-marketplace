@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     default: "أغاراتي — سوق عقاري",
     template: "%s · أغاراتي",
   },
-  description: "سوق عقاري مركّز لتركيا والمنطقة. واجهة عربية وتجربة للجوال أولاً.",
+  description: "منصة عقارية عراقية متخصصة للعقارات والمشاريع والوكالات المعتمدة، بتجربة عربية تبدأ من الهاتف.",
   applicationName: "أغاراتي",
   appleWebApp: {
     capable: true,

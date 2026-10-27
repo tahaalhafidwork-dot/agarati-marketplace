@@ -15,7 +15,7 @@ export function SiteFooter() {
         <div className="space-y-3 sm:col-span-2 lg:col-span-1">
           <Logo />
           <p className="max-w-xs text-sm leading-6 text-muted-foreground">
-            سوق عقاري مركّز لتركيا والمنطقة. واجهة عربية، تجربة للجوال أولاً.
+            منصة عقارية عراقية متخصصة للعقارات والمشاريع والوكالات المعتمدة، بتجربة عربية تبدأ من الهاتف.
           </p>
           <p className="text-xs text-muted-foreground">{SITE_NAME_LATIN}</p>
         </div>
